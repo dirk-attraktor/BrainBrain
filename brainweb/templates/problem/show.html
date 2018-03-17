@@ -1,0 +1,269 @@
+{% extends 'adminlte/base.html' %}
+
+{% block content_header %}
+    <section class="content-header">
+      <h1>Show Problem '{{problem.name}}'</h1>
+      <small>some empty description{{problem.description}} <a href="#">Edit Description</a></small>
+      <ol class="breadcrumb">
+        <li><a href="/"><i class="fa fa-dashboard"></i> Home</a></li>
+        <li><a href="/problem">Problems</a></li>
+        <li class="active">Show</li>
+      </ol>
+    </section>
+{% endblock %}
+
+
+{% block content %}
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="box">
+                <div class="box-header">
+                    <h3 class="box-title">{{problem.populations.count}} Populations <a href="/problem/{{ problem.id }}/cleanup">Cleanup</a></h3>
+                </div>
+                <div class="box-body">
+                    <div id="example2_wrapper" class="dataTables_wrapper form-inline dt-bootstrap">
+                        <div class="row">
+                            <div class="col-sm-6"></div>
+                            <div class="col-sm-6"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-12">
+                                <table id="example2" class="table table-bordered table-hover dataTable" role="grid">
+                                    <thead>
+                                        <tr role="row">
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Id</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Max Popsize</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Pop Size</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Best. Fitness</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg. Fitness</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> max inds</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> ind count</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> max gens</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> gen count</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> max code length</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg exec time</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for object in problem.populations.all %}
+                                            <tr>
+                                                <td>{{ object.id }}</td>
+                                                <td>{{ object.max_populationsize }}</td>
+                                                <td>{{ object.individuals.count }}</td>
+                                                <td>{{ object.getFitnessStats.max }}</td>
+                                                <td>{{ object.getFitnessStats.avg }}</td>
+                                                <td>{{ object.max_individuals }}</td>
+                                                <td>{{ object.individual_count }}</td>
+                                                <td>{{ object.max_generations }}</td>
+                                                <td>{{ object.generation_count }}</td>
+                                                <td>{{ object.max_code_length }}</td>
+                                                <td>{{ object.getFitnessStats.execution_time }}</td>
+                                                
+                                                <td>
+                                                    <a href="/population/{{ object.id }}">Show</a>
+                                                    <a href="/population/{{ object.id }}/delete">Delete</a>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- /.box-body -->
+            </div>    
+            
+            
+            <div class="box">
+                <div class="box-header">
+                    <h3 class="box-title">Top 10 Individuals</h3>
+                </div>
+                <div class="box-body">
+                    <div id="example2_wrapper" class="dataTables_wrapper form-inline dt-bootstrap">
+                        <div class="row">
+                            <div class="col-sm-6"></div>
+                            <div class="col-sm-6"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-12">
+                                <table id="example2" class="table table-bordered table-hover dataTable" role="grid">
+                                    <thead>
+                                        <tr role="row">
+                                        
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Id</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Population</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness Evals</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Eval Counter</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Eval Time</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Max Code length</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Code length</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for object in problem.getTopIndividuals %}
+                                            <tr>
+                                                    <td>{{ object.id }}</td>
+                                                    <td>{{ object.population }}</td>
+                                                    <td>{{ object.fitness }}</td>
+                                                    <td>{{ object.fitness_evalcount }}</td>
+                                                    <td>{{ object.execution_counter }}</td>
+                                                    <td>{{ object.execution_time }}</td>
+                                                    <td>{{ object.population.max_code_length }}</td>                                                    
+                                                    <td>{{ object.code | length}}</td>
+                                                <td>
+                                                    <a href="/individual/{{ object.id }}">Show</a>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- /.box-body -->
+            </div>                
+          
+        
+                      
+        </div>
+        
+    <div class="col-md-6">
+      <!-- AREA CHART -->
+      <div class="box box-primary">
+        <div class="box-header with-border">
+          <h3 class="box-title">Population Stats</h3>
+
+          <div class="box-tools pull-right">
+            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i>
+            </button>
+            <button type="button" class="btn btn-box-tool" data-widget="remove"><i class="fa fa-times"></i></button>
+          </div>
+        </div>
+        <div class="box-body">
+          <div class="chart">
+            <canvas id="populationsFitness"></canvas>
+            <script>
+                var ctx = document.getElementById('populationsFitness').getContext('2d');
+                    var labels = []
+                    var fitnessdata = []
+                    {% for object in problem.populations.all %} 
+                        labels.push("{{ object.id}}");
+                        fitnessdata.push({{ object.getFitnessStats.max}});
+                    {% endfor %}
+                    
+                    var chart = new Chart(ctx, {
+                        // The type of chart we want to create
+                        type: 'line',
+
+                        // The data for our dataset
+                        data: {
+                            //labels: ["January", "February", "March", "April", "May", "June", "July"],
+                            labels: labels.reverse(),
+                            datasets: [{
+                                label: "Max Population Fitness",
+                                backgroundColor: 'rgb(255, 99, 132)',
+                                borderColor: 'rgb(255, 99, 132)',
+                                //data: [0, 10, 5, 2, 20, 30, 45 , ],
+                                data: fitnessdata.reverse(),
+                                fill : false,
+                            }]
+                        },
+
+                        // Configuration options go here
+                        options: {
+                            
+                        }
+                    });
+
+            </script>
+          </div>
+        </div>
+        <!-- /.box-body -->
+      </div>
+      <!-- /.box -->
+          
+      <div class="box">
+                <div class="box-header">
+                    <h3 class="box-title">Reference Functions</h3>
+                </div>
+                <div class="box-body">
+                    <div id="example2_wrapper" class="dataTables_wrapper form-inline dt-bootstrap">
+                        <div class="row">
+                            <div class="col-sm-6"></div>
+                            <div class="col-sm-6"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-12">
+                                <table id="example2" class="table table-bordered table-hover dataTable" role="grid">
+                                    <thead>
+                                        <tr role="row">
+                                        
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Id</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Name</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness avg</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness sum</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness Evaluations</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Execution Counter</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Execution Time</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for object in problem.referencefunctions.all %}
+                                            <tr>
+                                                    <td>{{ object.id }}</td>
+                                                    <td>{{ object.name }}</td>
+                                                    <td>{{ object.fitness }}</td>
+                                                    <td>{{ object.fitness_sum }}</td>
+                                                    <td>{{ object.fitness_evalcount }}</td>
+                                                    <td>{{ object.execution_counter }}</td>
+                                                    <td>{{ object.execution_time }}</td>
+                                                <td>
+                                                    <a href="/referencefunction/{{ object.id }}/reset">Reset</a>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- /.box-body -->
+            </div>        
+          
+          
+          
+          
+          
+          
+          
+          
+        </div>       
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+    </div>
+{% endblock %}
