@@ -180,7 +180,7 @@ class Population(models.Model):
                 if diff == 0:
                     break
                     
-        if useP2P == True:
+        if useP2P == True and usePriorKnowledge == True:
             individual_datas = p2pClient.p2pClient().getIndividuals(self.problem.name,2)
             print("individuals received from p2p for problem %s" % self.problem)
             indsToReplace = 1
