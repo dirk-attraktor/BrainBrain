@@ -288,6 +288,8 @@ class Individual(models.Model):
     execution_counter = models.FloatField(default = 0) # nr of executions of this code version
     execution_time = models.FloatField(default = 0) 
        
+    parent_fitness =  models.FloatField(default = None,blank=True,null=True) # in case of crossover, set this to max parent fitness, used to track crossover quality
+    
     def __init__(self,*args,**kwargs):
         self.wasChanged = False
         super(type(self), self).__init__(*args,**kwargs)

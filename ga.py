@@ -23,7 +23,9 @@ GENES = [
     'D', # NoOp
 ]
    
-   
+def create_first_individual():
+    return "".join([random.choice(GENES) for _ in range(0,10)])
+    
 
 class Evolution():
     
@@ -77,8 +79,12 @@ class Evolution():
         if self.problem.populations.count() == 0 and self.problem.default_max_populationsize != 0:
             self.problem.addPopulation(usePriorKnowledge,useP2P)
         self.selected_population = self.problem.populations.all()[0]    
-        self.selected_population.initializeIndividuals()
-                   
+        self.selected_population.initializeIndividuals(usePriorKnowledge, useP2P)
+        for individual in self.selected_population.getIndividuals():
+            if len(individual.code) < 5:
+                #print("need to init code")
+                individual.code = create_first_individual()
+                individual.save()
         self.warmup = warmup
           
     def evolve(self,function): 
@@ -212,11 +218,21 @@ class Regression():
             self.problem.addPopulation(usePriorKnowledge,useP2P)
         self.selected_population = self.problem.populations.all()[0]    
         self.selected_population.initializeIndividuals(usePriorKnowledge,useP2P)
+        for individual in self.selected_population.getIndividuals():
+            if len(individual.code) < 5:
+                #print("need to init code")
+                individual.code = create_first_individual()
+                individual.save()
+        
         
     def regress(self, coderatingfunction,addpopulation = True, maxsteps = -1):
         if addpopulation == True:
             self.selected_population = self.problem.addPopulation(self.usePriorKnowledge,self.useP2P)
-
+        for individual in self.selected_population.getIndividuals():
+            if len(individual.code) < 5:
+                #print("need to init code")
+                individual.code = create_first_individual()
+                individual.save()
         step = 0
         while step < maxsteps or maxsteps == -1:
             step += 1
@@ -378,14 +394,14 @@ mutate_code_evolution = Evolution(
     max_generations = -1,
     max_individuals = -1,
     max_populationsize = 100,
-    referenceFunctionRate=0.3,
+    referenceFunctionRate=0.7,
     max_code_length = 100, 
     min_code_length = 10,
     max_steps = 1000,
     min_fitness_evaluation_per_individual = 1500,
     usePriorKnowledge = True,
     useP2P = True,
-    warmup = True,
+    #warmup = True,
 )
 @mutate_code_evolution.evolve   
 def mutate_code(code_tokens):
@@ -397,14 +413,14 @@ crossover_code_evolution = Evolution(
     max_generations = -1, 
     max_individuals = -1,
     max_populationsize = 100,
-    referenceFunctionRate=0.3,    
+    referenceFunctionRate=0.7,    
     max_code_length = 100, 
     min_code_length = 10,
     max_steps = 1000,
     min_fitness_evaluation_per_individual = 1500,
     usePriorKnowledge = True,
     useP2P = True,
-    warmup = True,
+    #warmup = True,
 )
 @crossover_code_evolution.evolve       
 def crossover_code(parent1_parent2):  # parent1 and  parent2 separated by '_'
@@ -559,18 +575,28 @@ def mutate_and_crossover(population):
     individuals.sort(key=lambda x:x.code_length,reverse = False)
     individuals.sort(key=lambda x:x.fitness,reverse = True)
     avgFitness = sum([i.fitness for i in individuals]) / len(individuals)
-    diff = None
+    mutate_code_evolution_reward = None
+    crossover_code_evolution_reward = None
     try:
-        diff = avgFitness - population.lastAvgFitness  
-        mutate_code_evolution.reward(diff)
+        mutate_code_evolution_reward = avgFitness - population.lastAvgFitness  
+        mutate_code_evolution.reward(mutate_code_evolution_reward)
         mutate_code_evolution.save()
-        crossover_code_evolution.reward(diff)
-        crossover_code_evolution.save()
         #print("delta gFitness: %s" % diff)
     except Exception as e:
         #print("no last avg fitness")
         population.lastAvgFitness  = avgFitness
         
+    parent_fitnesses = [i for i in individuals if i.parent_fitness != None and i.fitness != None]
+    if len(parent_fitnesses) > 0:
+        avg_parent_fitness = sum([i.parent_fitness for i in parent_fitnesses]) / len(parent_fitnesses)
+        avg_current_fitness = sum([i.fitness for i in parent_fitnesses]) / len(parent_fitnesses)
+        crossover_code_evolution_reward = avg_current_fitness - avg_parent_fitness
+        if crossover_code_evolution_reward > 0:
+            crossover_code_evolution.reward(crossover_code_evolution_reward)
+        else:
+            crossover_code_evolution.reward(0)
+        crossover_code_evolution.save()        
+            
     #print("bere")
     #print(individuals[0].fitness)
     #print(individuals[1].fitness)
@@ -586,7 +612,8 @@ def mutate_and_crossover(population):
         print("Individual count '%s'" % (population.individual_count ))
         print("Best Fitness: %s" % individuals[0].fitness)
         print("avg Fitness: %s" % avgFitness)
-        print("delta Fitness: %s" % diff)
+        print("mutate_code_evolution_reward: %s" % mutate_code_evolution_reward)
+        print("crossover_code_evolution_reward: %s" % crossover_code_evolution_reward)
         x = bytearray(best,"UTF-8")
         if len(x) > 50:
             print("Best: %s" % x[:100])
@@ -618,16 +645,22 @@ def mutate_and_crossover(population):
         p2 = individuals[i + 1].code
 
         if random.random() < crossover_rate:
+            if individuals[i].fitness != None and individuals[i+1].fitness != None:
+                individuals[i].parent_fitness = sum([individuals[i].fitness,individuals[i+1].fitness]) / 2 
+                individuals[i+1].parent_fitness = individuals[i].parent_fitness
             p1_p2 = crossover_code("%s_%s" % (p1, p2))
             p1_p2 = ''.join([i if ord(i) < 128 else '' for i in p1_p2])
             if len(p1_p2) < 10 or p1_p2.find("_") == -1:   
                 print("crossover failed")
                 crossover_code_evolution.reward(-100,100)
                 crossover_code_evolution.save()
-                p1,p2 = p1_p2, p1_p2
+                #p1,p2 = p1_p2, p1_p2
+                #keep old inds
             else:
                 p1,p2 = p1_p2.split("_",1)
-                
+        else:
+            individuals[i].parent_fitness = None
+            
         while len(p1) < individuals[i].population.min_code_length: 
             p1 += random.choice(GENES)
         while len(p2) < individuals[i+1].population.min_code_length: 
@@ -659,7 +692,7 @@ def mutate_and_crossover(population):
         updatecnt += 2
         #print("here")
         #print(individuals[i])
-    if mutatecnt == 0:
+    if mutatecnt == 0 and population.individual_count  <  population.max_individuals:
         print("no mutation happend, bad reward mutation function")
         mutate_code_evolution.reward(-100,50)
         mutate_code_evolution.save()

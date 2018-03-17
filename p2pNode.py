@@ -27,41 +27,38 @@ supernode_connection_threads = {}
 class p2pNodeHandler(WebSocket):
     def handleMessage(self):
         try:
-            print("handleMessage")
-            print(self.data)
+            #print("handleMessage")
+            #print(self.data)
             try:
                 self.parseCommand(json.loads(self.data))
             except Exception as e:
                 print("failed to parse received p2pNodeHandler data: '%s'" % e)
         except Exception as e:
-            print("handleMessage failed %s" % e)            
+            #print("handleMessage failed %s" % e)            
             print(data)
 
     def parseCommand(self,data):
         if data["command"] == "registerSuperNode":
             try:
                 peer = Peer.objects.get(host=data["args"]["ip"],port=data["args"]["port"])
-                print(" is a known peer")
+                #print(" is a known peer")
             except Exception as e:
-                print(e)
-                print(" is a new peer")
+                #print(e)
+                #print(" is a new peer")
                 peer = Peer()
                 peer.host =  data["args"]["ip"]
                 peer.port = data["args"]["port"]
             peer.supernode = True
             self.supernode = True
             peer.save()
+            print("%s registered as supernode" % peer )
             
         if data["command"] == "publishKnownProblems":
             self.knownProblems = data["args"]["problems"]
-            print("known problems received")
-            print(self.knownProblems)
             
         if data["command"] == "getIndividuals":
-            print(supernode_clients)
             clients = [c for c in supernode_clients if c != self and c.address[0] != self.address[0] and data["args"]["problem_name"] in c.knownProblems]
             if len(clients ) > 0:
-                print("some clients found")
                 client = random.choice(clients)
                 client.sendMessage(json.dumps({
                     "command" : data["command"],
@@ -71,7 +68,7 @@ class p2pNodeHandler(WebSocket):
                     }
                 }))
             else:
-                print("no clients found")
+                print("no clients found for problem %s" % data["args"]["problem_name"])
                 self.sendMessage(json.dumps({
                     "command" : "getIndividualsResponse", 
                     "args" : {
@@ -80,7 +77,6 @@ class p2pNodeHandler(WebSocket):
                 }))
                 
         if data["command"] == "getIndividualsResponse":
-            print("p2pNodeHandler getIndividualsResponse received")
             try:
                 sourceClient = [c for c in supernode_clients if c.id == data["args"]["callback"]][0]
             except Exception as e:
@@ -92,10 +88,8 @@ class p2pNodeHandler(WebSocket):
                     "individuals" : data["args"]["individuals"] 
                 }
             }))
-            print("p2pNodeHandler getIndividualsResponse done")
-    
+            
         if data["command"] == "getSuperNodes":
-            print("getSuperNodes received")
             peers = []
             try:
                 peers = [[x.host,x.port] for x in Peer.objects.filter(supernode=True)]
@@ -108,8 +102,7 @@ class p2pNodeHandler(WebSocket):
                     "data" : peers,
                 }
             }))
-            print("getSuperNodes received send")
-
+            
     def handleConnected(self):
         try:
             print(self.address, 'client "%s" connected to supernode' % self.address[0])
@@ -165,7 +158,7 @@ class p2pNode():
                 supernode_connection_threads[key].connection.close()
                 
     def clientthread(self,peer):
-        print("connecting to peer %s" % peer)
+        print("client connecting to peer %s" % peer)
         try:
             ws = create_connection("ws://%s:%s" % (peer.host,peer.port))
         except Exception as e: 
@@ -188,17 +181,14 @@ class p2pNode():
             print("failed to announce problem names: %s" % e)
 
         supernode_connection_threads[peer.host]["connection"] = ws
-        print("WEBsocket connected")
         while True:
             result =  ws.recv()
             data = {}
-            print("Client Received '%s'" % result)
             try:
                 self.parseCommand(json.loads(result),peer)
             except Exception as e:
                 print("failed to parse received data: '%s'" % e)
-            print(data)
-        print("connection to peer closing %s" % peer)   
+        
         ws.close()
         
         supernode_connection_threads[peer.host]["connection"] = None
@@ -219,14 +209,12 @@ class p2pNode():
             self.getSuperNodesResponse(data["args"]["data"])
             
     def getSuperNodesResponse(self,nodelist):
-        print("getSuperNodesResponse")
-        print(nodelist)
         for host,port in nodelist:
             try:
                 peer = Peer.objects.get(host=host,port=port)
                 peer.supernode = True
                 peer.save()
-                print("superNode %s is known" % (host))
+                print("supernode %s is already known" % (host))
             except Exception as e: 
                 print("superNode %s is unknown : %s"% (host,e))
                 p = Peer()
@@ -250,7 +238,6 @@ class p2pNode():
         return data
     
     def watchdog(self):
-        print("watchdog starting")
         max_supernode_connections = 1
         while True:
             if len(supernode_connection_threads) <  max_supernode_connections:
@@ -296,8 +283,6 @@ class p2pNode():
 if __name__ == "__main__":
     isPublicNode = False
 
-    
-    
     try:
         if sys.argv[1] == "addpeer":
             host = sys.argv[2]
@@ -314,7 +299,6 @@ if __name__ == "__main__":
             exit(0)
     except Exception as e:
         None
-            
     
     try:
         if sys.argv[1] == "public":
@@ -328,31 +312,6 @@ if __name__ == "__main__":
             
     node = p2pNode(host,isPublicNode)
     node.start()
-    time.sleep(10000)
+    while True:
+        time.sleep(1000)
     
-'''    
-print("SERVER")            
-server = p2pNode('192.168.6.241',True)
-server.start()
-time.sleep(5)
-
-print("CLIENT 1")
-client = p2pNode('192.168.6.243',False)
-client.start()
-time.sleep(5)
-
-print("CLIENT 2")
-client1 = p2pNode('192.168.6.242',False)
-client1.start()
-time.sleep(5)
-
-localclient = localP2PClient()
-localclient.getIndividuals("google_testcases-add")
-#import IPython
-#IPython.embed()
-
-client.receiveIndividuals("google_testcases-add")
-
-
-time.sleep(1000)
-'''

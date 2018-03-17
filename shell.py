@@ -21,20 +21,21 @@ def runThread(cmd):
         time.sleep(5)
         
 def work(nrOfthread):
-    cmd = "python3 p2pNode.py"    
-    t = threading.Thread(target=runThread,args=[cmd])
-    t.daemon = True
-    t.start()
+    #cmd = "python3 p2pNode.py"    
+    #t = threading.Thread(target=runThread,args=[cmd])
+    #t.daemon = True
+    #t.start()
 
     for _ in range(0,nrOfthread-1):
         cmd = "python3 run-google-testcases.py run random"
         t = threading.Thread(target=runThread,args=[cmd])
         t.daemon = True
         t.start()
-    cmd = "python3 advtain.py"    
-    t = threading.Thread(target=runThread,args=[cmd])
-    t.daemon = True
-    t.start()
+    for _ in range(0,1):
+        cmd = "python3 advtain.py"    
+        t = threading.Thread(target=runThread,args=[cmd])
+        t.daemon = True
+        t.start()
 
 import IPython
 IPython.embed()

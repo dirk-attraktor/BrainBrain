@@ -21,17 +21,6 @@ from ga import Evolution
 
 import cProfile
 
-def warmup():
-    mutate_code_problem1 = Evolution.initializeProblem("mutate_code", max_generations = -1, max_individuals = -1,max_populationsize = 100, online = False)
-    lines = open("/tmp/deltafitness","r").read().split("\n")
-    def fitness(individual):
-        io_seqs = [l.split("\t") for l in random.sample(lines,30)]
-        io_seqs = [x for x in io_seqs if len(x) == 2]
-        return _score_individual(individual,io_seqs)
-        
-    mutate_code_problem1.regress(fitness,addpopulation = False,maxsteps = 10000)
-    mutate_code_problem1.selected_population.save()
-    #@mutate_code_problem.evolve 
 
 def train(taskname):
     print("Running Task '%s'" % taskname)
@@ -47,7 +36,7 @@ def train(taskname):
     def fitnessF(individual):
         return sum(task._score_individual(individual).episode_rewards)
     
-    problem = Regression("google_testcases-%s" % taskname, max_generations = -1, max_individuals = 100000,max_populationsize = 100, max_code_length=20,min_code_length=20,max_steps = 500)
+    problem = Regression("google_testcases-%s" % taskname, max_generations = -1, max_individuals = 100000,max_populationsize = 100, max_code_length=20,min_code_length=20,max_steps = 500,usePriorKnowledge=False)
     
     startfitness = problem.selected_population.getFitnessStats()
     problem.regress(fitnessF)
