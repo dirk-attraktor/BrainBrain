@@ -47,7 +47,7 @@ def train(taskname):
     def fitnessF(individual):
         return sum(task._score_individual(individual).episode_rewards)
     
-    problem = Regression("google_testcases-%s" % taskname, max_generations = -1, max_individuals = 100000,max_populationsize = 100, max_code_length=20,min_code_length=20,max_steps = 500)
+    problem = Regression("google_testcases-%s" % taskname, max_generations = -1, max_individuals = 30000,max_populationsize = 100, max_code_length=20,min_code_length=20,max_steps = 500)
     
     startfitness = problem.selected_population.getFitnessStats()
     problem.regress(fitnessF)

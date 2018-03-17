@@ -6,6 +6,18 @@
  
 #### Run P2P Node
 
- python3 p2pNode publicip 1.2.3.4
+
+ Add first Bootstrap peer:
+   
+   python3 p2pNode addpeer 1.23.42.66
+  
  
- 
+ Behind NAT:
+   
+   python3 p2pNode
+    
+ Without NAT
+   
+  python3 p2pNode public 1.2.3.4
+  
+  

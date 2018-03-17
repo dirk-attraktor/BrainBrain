@@ -296,6 +296,26 @@ class p2pNode():
 if __name__ == "__main__":
     isPublicNode = False
 
+    
+    
+    try:
+        if sys.argv[1] == "addpeer":
+            host = sys.argv[2]
+            try:
+                peer = Peer.objects.get(supernode=True,port=4141,host=host)
+                print("Peer %s already exists" % host)
+            except: 
+                print("Creating Peer %s" % host)
+                p = Peer()
+                p.host = host
+                p.port = "4141"
+                p.supernode = True
+                p.save()
+            exit(0)
+    except Exception as e:
+        None
+            
+    
     try:
         if sys.argv[1] == "public":
             isPublicNode = True

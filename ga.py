@@ -123,14 +123,14 @@ class Evolution():
 
     
     def reward(self,value):
-        print("REWARD")
+        #print("REWARD")
         self.selected_individual.addFitness(value)
         self.selected_individual = None
         individuals = self.selected_population.getIndividuals() 
         
         underrated = [i for i in individuals if i.fitness_evalcount < self.selected_population.min_fitness_evaluation_per_individual]
         if len(underrated) == 0:
-            print("REWARD GA STEP1")
+            #print("REWARD GA STEP1")
             ga_step(self.selected_population)
     
     def save(self):
@@ -553,7 +553,7 @@ def mutate_and_crossover(population):
         c2 = ''.join([i if ord(i) < 128 else '' for i in c2])
         
         if len(c1) < 5 or len(c2) < 5:
-            print("out of bound bad reward")
+            #print("out of bound bad reward")
             mutate_code_evolution.reward(-99)
             mutate_code_evolution.save()
         

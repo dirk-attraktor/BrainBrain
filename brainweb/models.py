@@ -6,7 +6,7 @@ import time
 import requests
 import json
 import p2pClient
-
+from django.db import connection
 def lock(modelobject):
     lockid = random.randint(0,9999999)
     updated = modelobject.objects.filter(pk=modelobject.id,lock="").update(lock = lockid)
@@ -154,9 +154,13 @@ class Population(models.Model):
     min_fitness_evaluation_per_individual  =  models.IntegerField(default = 1)
     # -> individuals
        
-    garunning = False
        
-    individual_cache = None
+    def __init__(self,*args,**kwargs):
+        self.individual_cache = None#
+        self.garunning = False
+        super(type(self), self).__init__(*args,**kwargs)
+
+    
     class Meta:
         ordering = ["-created"]
         
@@ -283,11 +287,17 @@ class Individual(models.Model):
     step_counter = models.FloatField(default = 0) # nr of executions of this code version
     execution_counter = models.FloatField(default = 0) # nr of executions of this code version
     execution_time = models.FloatField(default = 0) 
+       
+    def __init__(self,*args,**kwargs):
+        self.wasChanged = False
+        super(type(self), self).__init__(*args,**kwargs)
 
+    
     class Meta:
         ordering = ["-fitness","code_length"]
         
     def addFitness(self, value,):
+        self.wasChanged = True
         self.fitness_sum += value
         self.fitness_evalcount += 1
         self.fitness = self.fitness_sum / self.fitness_evalcount
@@ -298,9 +308,11 @@ class Individual(models.Model):
         self.execution_counter += 1
         self.step_counter += x.steps 
         self.execution_time += (time.time() - start)
+        self.wasChanged = True
         return x
         
-    def setCode(self, newcode):         
+    def setCode(self, newcode): 
+        self.wasChanged = True    
         if newcode == self.code:
             #print("dont set same code")
             return False
@@ -313,6 +325,12 @@ class Individual(models.Model):
         self.code = newcode
         self.code_length = len(newcode)
         return True
+   
+    def save(self):
+        if self.wasChanged == True or self.id == None:
+            self.wasChanged = False
+            super(type(self), self).save()
+            
         
     def __str__(self):
         return "Problem: %s Population: %s Individual: %s Fitness: %s  '%s'" % (self.population.problem.name,self.population.id,self.id,self.fitness, self.code)
