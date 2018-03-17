@@ -129,7 +129,7 @@ class Problem(models.Model):
        
        
     def save(self):  
-        print("save called in Problem")
+        #print("save called in Problem")
         super(type(self), self).save()
 
         
@@ -296,7 +296,7 @@ class Individual(models.Model):
     class Meta:
         ordering = ["-fitness","code_length"]
         
-    def addFitness(self, value,):
+    def addFitness(self, value):
         self.wasChanged = True
         self.fitness_sum += value
         self.fitness_evalcount += 1

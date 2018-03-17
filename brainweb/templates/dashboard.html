@@ -44,14 +44,13 @@
                                     <tbody>
                                         {% for object in problems %}
                                             <tr>
-                                                    <td>{{ object.id }}</td>
+                                                    <td><a href="/problem/{{ object.id }}">{{ object.id }}</a></td>
                                                     <td>{{ object.name }}</td>
                                                     <td>{{ object.referencefunctions.count }}</td>
                                                     <td>{{ object.populations.count }}</td>
                                                 
                                                 <td>
                                                     <a href="/problem/{{ object.id }}">Edit</a>
-                                                    <a href="/problem/{{ object.id }}">Show</a>
                                                     <a href="/problem/{{ object.id }}/cleanup">cleanup</a>
                                                 </td>
                                                                   

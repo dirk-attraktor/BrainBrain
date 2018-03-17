@@ -357,7 +357,7 @@ class RemoveCharTask(BaseTask):
 
   def _make_io_examples(self, n, min_len, max_len):
     """Generate test cases for the task."""
-    rand = random.Random(6849275409234)  # Test cases are fixed, but varied.
+    rand = random.Random()  # Test cases are fixed, but varied.
     io_examples = []
     for _ in xrange(n):
       length = rand.randrange(min_len, max_len + 1)
@@ -454,7 +454,7 @@ class ReverseTask(BaseTask):
 
   def _make_io_examples(self, n, min_len, max_len):
     """Generate test cases for the task."""
-    rand = random.Random(6849275409234)  # Test cases are fixed, but varied.
+    rand = random.Random()  # Test cases are fixed, but varied.
     io_examples = []
     for _ in xrange(n):
       length = rand.randrange(min_len, max_len + 1)
@@ -549,7 +549,7 @@ class CountCharTaskV2(BaseTask):
 
   def _make_io_examples(self, n, max_len):
     """Generate test cases for the task."""
-    rand = random.Random(6849275409234)  # Test cases are fixed, but varied.
+    rand = random.Random()  # Test cases are fixed, but varied.
     io_examples = []
     io_examples.append(([10, 0], [0]))
     io_examples.append(([1, 0], [1]))
@@ -588,7 +588,7 @@ class AddTask(BaseTask):
 
   def _make_io_examples(self, n):
     """Generate test cases for the task."""
-    rand = random.Random(6849275409234)  # Test cases are fixed, but varied.
+    rand = random.Random()  # Test cases are fixed, but varied.
     io_examples = [
         ([4, 0], [4, 0]),
         ([0, 5], [5, 0]),
@@ -672,7 +672,7 @@ class KnownCodeBaseTask(BaseTask):
     self._test_cases = list(self._test_case_generator(code_solution))
 
   def _test_case_generator(self, code_solution):
-    rand = random.Random(self.seed)
+    rand = random.Random()
     for _ in xrange(self.n):
       input_case = self.make_input_fn(rand)
       result = brainfuck.evaluate(
@@ -1011,7 +1011,7 @@ class JudgeRouteCircleTask(BaseTask):
 
   def _make_io_examples(self, n, max_len):
     """Generate test cases for the task."""
-    rand = random.Random(6849275409234)  # Test cases are fixed, but varied.
+    rand = random.Random()  # Test cases are fixed, but varied.
     io_examples = []
     io_examples.append(([0], [1]))
     io_examples.append(([4, 2, 0], [1]))
@@ -1090,7 +1090,7 @@ class MultiplyTask(BaseTask):
 
   def _make_io_examples(self, n):
     """Generate test cases for the task."""
-    rand = random.Random(6849275409234)  # Test cases are fixed, but varied.
+    rand = random.Random()  # Test cases are fixed, but varied.
     io_examples = []
     for _ in xrange(n):
       n = rand.randrange(self.base)
@@ -1132,7 +1132,7 @@ class DivModTask(BaseTask):
     self.output_type = misc.IOType.integer
 
   def _make_io_examples(self, n):
-    rand = random.Random(6849275409234)  # Test cases are fixed, but varied.
+    rand = random.Random()  # Test cases are fixed, but varied.
     io_examples = []
     for _ in xrange(n):
       n = rand.randrange(0, self.base)
@@ -1251,7 +1251,7 @@ class SortFixedTaskV2(BaseTask):
     self.output_type = misc.IOType.integer
 
   def _make_io_examples(self, n, length):
-    rand = random.Random(6849275409234)  # Test cases are fixed, but varied.
+    rand = random.Random()  # Test cases are fixed, but varied.
     io_examples = []
     for _ in xrange(n):
       input_seq = [rand.randrange(1, self.base) for _ in xrange(length)]

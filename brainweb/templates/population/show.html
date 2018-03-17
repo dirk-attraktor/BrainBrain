@@ -49,7 +49,7 @@
                                     <tbody>
                                         {% for object in population.individuals.all %}
                                             <tr>
-                                                    <td>{{ object.id }}</td>
+                                                    <td><a href="/individual/{{ object.id }}">{{ object.id }}</a></td>
                                                     <td>{{ object.population }}</td>
                                                     <td>{{ object.fitness }}</td>
                                                     <td>{{ object.fitness_evalcount }}</td>
@@ -60,7 +60,6 @@
                                                     <td>{{ object.code_length}} </td>
                                                     <td>{{ object.code}}</td>
                                                 <td>
-                                                    <a href="/individual/{{ object.id }}">Show</a>
                                                 </td>
                                             </tr>
                                         {% endfor %}
