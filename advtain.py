@@ -50,7 +50,7 @@ def advtain():
     solvecount = 0    
     tries = 5
     for _ in range(0,tries):
-        problem = Regression("solve_training_problem" , max_generations = -1, max_individuals = 50000,max_populationsize = 100, max_code_length=20,min_code_length=20,max_steps = 500, usePriorKnowledge = False,useP2P = False)    
+        problem = Regression("solve_training_problem" , max_generations = -1, max_individuals = 50000,max_populationsize = 100, max_code_length=20,min_code_length=20,max_steps = 1500, usePriorKnowledge = False,useP2P = False)    
         problem.regress(fitnessF)
         problem.save()
         endfitness = problem.selected_population.getFitnessStats()   

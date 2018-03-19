@@ -166,6 +166,12 @@ class Population(models.Model):
         
     def initializeIndividuals(self,usePriorKnowledge = True, useP2P = True):
         diff =  self.max_populationsize - self.individuals.count()
+        while diff < 0: 
+            print("To many individuals found, killing")
+            random.choice(self.individuals.all()).delete()
+            diff =  self.max_populationsize - self.individuals.count()  
+            
+            
         if diff > 0 and  usePriorKnowledge == True:
             individuals = self.problem.getP2PIndividuals(16,4)
             for oldindividual in individuals:
@@ -195,7 +201,7 @@ class Population(models.Model):
                     print("does not exist local")
                     individuals = self.individuals.all()
                     c = individuals.count()
-                    if indsToReplace ==0 or c < 20:
+                    if (indsToReplace == 0 or c < 20) and diff > 0:
                         individual = Individual()
                         individual.population = self
                         individual.code = individual_data["code"] # ?? should be 0 ?

@@ -650,14 +650,24 @@ def mutate_and_crossover(population):
                 individuals[i+1].parent_fitness = individuals[i].parent_fitness
             p1_p2 = crossover_code("%s_%s" % (p1, p2))
             p1_p2 = ''.join([i if ord(i) < 128 else '' for i in p1_p2])
-            if len(p1_p2) < 10 or p1_p2.find("_") == -1:   
+            if p1_p2.find("_") == -1:   
                 print("crossover failed")
                 crossover_code_evolution.reward(-100,100)
                 crossover_code_evolution.save()
+                individuals[i].parent_fitness = None
+                individuals[i+1].parent_fitness = None
                 #p1,p2 = p1_p2, p1_p2
                 #keep old inds
             else:
-                p1,p2 = p1_p2.split("_",1)
+                p1a,p2a = p1_p2.split("_",1)
+                if len(p1a) < len(p1)/3 or len(p2a) < len(p2)/3 or len(p1_p2) < (len(p1)+len(p2))/2:
+                    crossover_code_evolution.reward(-100,100)
+                    crossover_code_evolution.save()
+                    individuals[i].parent_fitness = None
+                    individuals[i+1].parent_fitness = None
+                else:
+                    p1,p2 = p1a,p2a
+                        
         else:
             individuals[i].parent_fitness = None
             
@@ -671,7 +681,7 @@ def mutate_and_crossover(population):
         c1 = ''.join([i if ord(i) < 128 else '' for i in c1])
         c2 = ''.join([i if ord(i) < 128 else '' for i in c2])
         
-        if len(c1) < 5 or len(c2) < 5:
+        if len(c1) < individuals[i].population.min_code_length or len(c2) < individuals[i+1].population.min_code_length:
             #print("out of bound bad reward")
             mutate_code_evolution.reward(-100,100)
             mutate_code_evolution.save()
