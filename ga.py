@@ -376,9 +376,7 @@ def crossover_code_base(parent1, parent2):
   Returns:
     A 2-tuple of children, i.e. the resulting code strings after swapping.
   """
-  max_parent, min_parent = (
-      (parent1, parent2) if len(parent1) > len(parent2)
-      else (parent2, parent1))
+  max_parent, min_parent = ((parent1, parent2) if len(parent1) > len(parent2) else (parent2, parent1))
   pos = random.randrange(len(max_parent))
   if pos >= len(min_parent):
     child1 = max_parent[:pos]
@@ -640,7 +638,6 @@ def mutate_and_crossover(population):
         if population.max_individuals > -1:
             if population.individual_count + updatecnt + 2  > population.max_individuals:
                 break
-        #print(i)
         p1 = individuals[i].code
         p2 = individuals[i + 1].code
 
@@ -651,7 +648,7 @@ def mutate_and_crossover(population):
             p1_p2 = crossover_code("%s_%s" % (p1, p2))
             p1_p2 = ''.join([i if ord(i) < 128 else '' for i in p1_p2])
             if p1_p2.find("_") == -1:   
-                print("crossover failed")
+                #print("crossover failed")
                 crossover_code_evolution.reward(-100,100)
                 crossover_code_evolution.save()
                 individuals[i].parent_fitness = None
@@ -660,14 +657,6 @@ def mutate_and_crossover(population):
                 #keep old inds
             else:
                 p1a,p2a = p1_p2.split("_",1)
-                if len(p1a) < len(p1)/3 or len(p2a) < len(p2)/3 or len(p1_p2) < (len(p1)+len(p2))/2:
-                    crossover_code_evolution.reward(-100,100)
-                    crossover_code_evolution.save()
-                    individuals[i].parent_fitness = None
-                    individuals[i+1].parent_fitness = None
-                else:
-                    p1,p2 = p1a,p2a
-                        
         else:
             individuals[i].parent_fitness = None
             
