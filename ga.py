@@ -79,7 +79,9 @@ class Evolution():
         if self.problem.populations.count() == 0 and self.problem.default_max_populationsize != 0:
             self.problem.addPopulation(usePriorKnowledge,useP2P)
         self.selected_population = self.problem.populations.all()[0]    
+        self.selected_population.min_fitness_evaluation_per_individual = min_fitness_evaluation_per_individual
         self.selected_population.initializeIndividuals(usePriorKnowledge, useP2P)
+        self.selected_population.save()
         for individual in self.selected_population.getIndividuals():
             if len(individual.code) < 5:
                 #print("need to init code")
