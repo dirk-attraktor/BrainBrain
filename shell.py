@@ -11,9 +11,6 @@ print(" node.start()")
 
 from brainweb.models import Individual
 from django.db import connection
-print(len(connection.queries))
-i = Individual.objects.all()[0:4]
-print(i)
 
 def updateThread():
     while True:
