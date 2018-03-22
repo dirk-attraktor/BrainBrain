@@ -15,7 +15,7 @@ print(len(connection.queries))
 i = Individual.objects.all()[0:4]
 print(i)
 
-def updateThread(cmd):
+def updateThread():
     while True:
         os.system("git pull")
         os.system("python3 manage.py migrate")
