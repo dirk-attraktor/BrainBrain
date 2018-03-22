@@ -297,28 +297,28 @@ def ga_step(population):
     #print(population.problem.name)
 
     if population.garunning == True:
-        print("No step")
+        print("No step for population %s" % population)
         return
     population.garunning = True
     if population.max_generations != -1 and population.generation_count >= population.max_generations:
-        print("Max generations reached")
+        print("Max generations reached for population %s" % population)
         return False
     if population.max_individuals != -1 and population.individual_count >= population.max_individuals:
-        print("Max individuals reached")
-        return False     
+        print("Max individuals reached for population %s" % population)
+        return False
 
     if population.problem.sync_to_database == True:
-        print("SYNC POP")
+        print("SYNC population %s" % population)
         if population.lock() == False:
-            print("no ga step, population is locked")
-            return         
+            print("no ga step, population %s is locked" % population)
+            return
     changecnt = mutate_and_crossover(population)
     population.individual_count += changecnt   
     population.generation_count += 1
-    population.garunning = False
     if population.problem.sync_to_database == True:
         population.unlock()
-  
+    population.garunning = False
+
     return True   
 
     

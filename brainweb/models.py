@@ -172,12 +172,13 @@ class Population(models.Model):
         try:
             lock = Lock.objects.get(population_id = self.id)
             if lock.updated <  datetime.datetime.now()-datetime.timedelta(minutes=10):
-                print("lock has expired")
+                print("%s lock has expired")
                 lock.save()
                 return True
+            print("%s is locked, not locking again" % self)
             return False
         except:
-            print("Pop %s not locked,locking" % self)
+            print("%s not locked, locking" % self)
             l = Lock()
             l.population_id = self.id
             l.save()
@@ -187,15 +188,16 @@ class Population(models.Model):
         try:
             lock = Lock.objects.get(population_id = self.id)
             lock.delete()
+            print("%s unlocked" % self)
         except:
-            print("Pop %s not locked, not locking" % self)
+            print("%s not locked, not unlocking" % self)
             
     def isLocked(self):
         try:
             lock = Lock.objects.get(population_id = self.id)
             return True
         except:
-            print("Pop %s not locked" % self)
+            print("%s is not locked" % self)
             return False
             
     def __init__(self,*args,**kwargs):
