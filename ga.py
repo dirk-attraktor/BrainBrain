@@ -6,6 +6,7 @@ from brainweb.models import Population
 from brainweb.models import ReferenceFunction
 import numpy as np
 import reward
+import p2pClient
 
 GENES = [
     '>', # inkrementiert den Zeiger
