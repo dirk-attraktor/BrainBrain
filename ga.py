@@ -629,8 +629,8 @@ def mutate_and_crossover(population):
         print("individuals received from p2p for problem %s" % population.problem)
         #indsToReplace = 1
         for individual_data in individual_datas:
-            localindividuals = self.individuals.filter(code=individual_data["code"])
-            if localindividuals.count() > 0:
+            localindividuals = [i for i in individuals if i.code == individual_data["code"]]
+            if len(localindividuals) > 0:
                 print("exists local")
             else:
                 print("does not exist local")
