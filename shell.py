@@ -14,6 +14,15 @@ from django.db import connection
 print(len(connection.queries))
 i = Individual.objects.all()[0:4]
 print(i)
+
+def updateThread(cmd):
+    while True:
+        os.system("git pull")
+        os.system("python3 manage.py migrate")
+        print("thread '%s' exited " % cmd)
+        time.sleep(3600)
+
+
 def runThread(cmd):
     while True:
         os.system(cmd)
@@ -21,10 +30,9 @@ def runThread(cmd):
         time.sleep(5)
         
 def work(nrOfthread):
-    #cmd = "python3 p2pNode.py"    
-    #t = threading.Thread(target=runThread,args=[cmd])
-    #t.daemon = True
-    #t.start()
+    t = threading.Thread(target=updateThread)
+    t.daemon = True
+    t.start()
 
     for _ in range(0,nrOfthread-1):
         cmd = "python3 run-google-testcases.py run random"

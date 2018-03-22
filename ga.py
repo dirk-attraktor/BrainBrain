@@ -63,10 +63,11 @@ class Evolution():
             problem = Problem()
             new = True
         self.referenceFunctionRate = referenceFunctionRate
-        self.usePriorKnowledge = usePriorKnowledge
-        self.useP2P = useP2P
 
         problem.name = name
+        problem.usePriorKnowledge = usePriorKnowledge
+        problem.useP2P = useP2P
+        
         problem.description = description
         problem.sync_to_database = sync_to_database
         problem.default_max_populationsize = max_populationsize
@@ -80,10 +81,10 @@ class Evolution():
         problem.save()
         self.problem = problem
         if self.problem.populations.count() == 0 and self.problem.default_max_populationsize != 0:
-            self.problem.addPopulation(usePriorKnowledge,useP2P)
+            self.problem.addPopulation()
         self.selected_population = self.problem.populations.all()[0]    
         self.selected_population.min_fitness_evaluation_per_individual = min_fitness_evaluation_per_individual
-        self.selected_population.initializeIndividuals(usePriorKnowledge, useP2P)
+        self.selected_population.initializeIndividuals()
         self.selected_population.save()
         for individual in self.selected_population.getIndividuals():
             if len(individual.code) < 5:
@@ -94,7 +95,7 @@ class Evolution():
           
     def evolve(self,function): 
         if self.problem.populations.count() == 0 and self.problem.default_max_populationsize != 0:
-            self.problem.addPopulation(usePriorKnowledge,useP2P)
+            self.problem.addPopulation()
         name = function.__name__
         if name not in self.loaded_referenceFunctions:
             referenceFunction = self.problem.getReferenceFunction(name)
@@ -207,8 +208,8 @@ class Regression():
 
         problem.name = name
         problem.description = description
-        self.usePriorKnowledge = usePriorKnowledge
-        self.useP2P = useP2P
+        problem.usePriorKnowledge = usePriorKnowledge
+        problem.useP2P = useP2P
         problem.default_max_populationsize = max_populationsize
         problem.default_max_individuals = max_individuals
         problem.default_max_generations = max_generations
@@ -220,9 +221,9 @@ class Regression():
         problem.save()
         self.problem = problem
         if self.problem.populations.count() == 0 and self.problem.default_max_populationsize != 0:
-            self.problem.addPopulation(usePriorKnowledge,useP2P)
+            self.problem.addPopulation()
         self.selected_population = self.problem.populations.all()[0]    
-        self.selected_population.initializeIndividuals(usePriorKnowledge,useP2P)
+        self.selected_population.initializeIndividuals()
         for individual in self.selected_population.getIndividuals():
             if len(individual.code) < 5:
                 #print("need to init code")
@@ -232,7 +233,7 @@ class Regression():
         
     def regress(self, coderatingfunction,addpopulation = True, maxsteps = -1):
         if addpopulation == True:
-            self.selected_population = self.problem.addPopulation(self.usePriorKnowledge,self.useP2P)
+            self.selected_population = self.problem.addPopulation()
         for individual in self.selected_population.getIndividuals():
             if len(individual.code) < 5:
                 #print("need to init code")
@@ -488,9 +489,9 @@ def adjust_max_codelength(population,individuals):
         population.max_code_length = int(population.max_code_length - 3 )
     if population.max_code_length < 30:
         population.max_code_length = 30
-    if population.max_code_length > 1000:
-        print("1k lines?")
-        population.max_code_length = 1000
+    if population.max_code_length > 5000:
+        print("5k lines?")
+        population.max_code_length = 5000
         
     if population.generation_count % 20 == 0:
         print("avg_codelength: %s" % avg_codelength)
@@ -544,10 +545,10 @@ def mutate_and_crossover(population):
         if last_best_fitness != None:
             if best_individual.fitness > last_best_fitness:
                 print("new is better")
-                f=open("track_top_individuals.csv","ab")
-                f.write(("%s_%s__" % (last_best_code,best_individual.code)).encode('utf-8'))
-                f.flush()
-                f.close()
+                #f=open("track_top_individuals.csv","ab")
+                #f.write(("%s_%s__" % (last_best_code,best_individual.code)).encode('utf-8'))
+                #f.flush()
+                #f.close()
                 mutate_code_evolution_reward += 1
             
         population.best_fitness = best_individual.fitness
@@ -619,7 +620,23 @@ def mutate_and_crossover(population):
             pos = random.randint(0,(len(individual.code )-1))
             newcode = individual.code[:pos] +  random.choice(GENES) + individual.code[pos:]
             individual.setCode( newcode)
-           
+            
+    individuals[0].reset() # always reeval best
+  
+    if population.problem.useP2P == True and population.problem.usePriorKnowledge == True:
+        individual_datas = p2pClient.p2pClient().getIndividuals(population.problem.name,2)
+        print("individuals received from p2p for problem %s" % population.problem)
+        #indsToReplace = 1
+        for individual_data in individual_datas:
+            localindividuals = self.individuals.filter(code=individual_data["code"])
+            if localindividuals.count() > 0:
+                print("exists local")
+            else:
+                print("does not exist local")
+                individuals[l-1].setCode(individual_data["code"])
+                break
+
+  
     return len([i for i in individuals if i.fitness == None])
 
     

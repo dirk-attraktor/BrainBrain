@@ -52,6 +52,9 @@ class Problem(models.Model):
     name     = models.CharField( max_length=200,default="", unique=True)
     description = models.CharField( max_length=200,default="")
 
+    usePriorKnowledge = models.BooleanField(default=False)
+    useP2P = models.BooleanField(default=False)
+
     default_max_populationsize =  models.IntegerField(default = 100)  # max number of living individuals
     default_max_individuals  = models.IntegerField(default = -1)  # total number of individuals to generate during evolution, or -1 for unlimited, evolution will stop and return null for new unrated individuals at this point
     default_max_generations =  models.IntegerField(default = -1) # total number of evolutionary steps during evolution, or -1 for unlimited
@@ -84,7 +87,7 @@ class Problem(models.Model):
                 [r.append(x) for x in i]
         return sorted(r,key= lambda x:x.fitness,reverse = True)[0:limit]
        
-    def addPopulation(self,usePriorKnowledge,useP2P):
+    def addPopulation(self):
         cnt = self.populations.count()
         while cnt > 100:
             self.populations.all()[cnt-1:cnt][0].delete()
@@ -101,7 +104,7 @@ class Problem(models.Model):
         population.max_steps = self.default_max_steps
         population.min_fitness_evaluation_per_individual = self.default_min_fitness_evaluation_per_individual
         population.save()
-        population.initializeIndividuals(usePriorKnowledge,useP2P)
+        population.initializeIndividuals()
         return population
         
             
@@ -209,7 +212,7 @@ class Population(models.Model):
     class Meta:
         ordering = ["-created"]
         
-    def initializeIndividuals(self,usePriorKnowledge = True, useP2P = True):
+    def initializeIndividuals(self):
         diff =  self.max_populationsize - self.individuals.count()
         while diff < 0: 
             print("To many individuals found, killing")
@@ -217,7 +220,7 @@ class Population(models.Model):
             diff =  self.max_populationsize - self.individuals.count()  
             
             
-        if diff > 0 and  usePriorKnowledge == True:
+        if diff > 0 and  self.problem.usePriorKnowledge == True:
             individuals = self.problem.getP2PIndividuals(16,4)
             for oldindividual in individuals:
                 individual = Individual()
@@ -231,10 +234,10 @@ class Population(models.Model):
                 if diff == 0:
                     break
                     
-        if useP2P == True and usePriorKnowledge == True:
+        if diff > 0 and self.problem.usePriorKnowledge == True and self.problem.useP2P == True:
             individual_datas = p2pClient.p2pClient().getIndividuals(self.problem.name,2)
             print("individuals received from p2p for problem %s" % self.problem)
-            indsToReplace = 1
+            #indsToReplace = 1
             for individual_data in individual_datas:
                 localindividuals = self.individuals.filter(code=individual_data["code"])
                 if localindividuals.count() > 0:
@@ -245,22 +248,17 @@ class Population(models.Model):
                 else:
                     print("does not exist local")
                     individuals = self.individuals.all()
-                    c = individuals.count()
-                    if (indsToReplace == 0 or c < 20) and diff > 0:
+                    if diff > 0:
                         individual = Individual()
                         individual.population = self
-                        individual.code = individual_data["code"] # ?? should be 0 ?
+                        individual.code = individual_data["code"] # 
                         individual.fitness_evalcount = 0 # individual_data["fitness_evalcount"]
                         individual.fitness_sum = 0       # individual_data["fitness_sum"]
                         individual.save()
                         diff -= 1
                         if diff == 0:
                             break
-                    else:
-                        individuals[c-10+indsToReplace].setCode(individual_data["code"])
-                        individuals[c-10+indsToReplace].fitness_evalcount = individual_data["fitness_evalcount"]
-                        individuals[c-10+indsToReplace].fitness_sum = individual_data["fitness_sum"]
-                        indsToReplace -=1
+
         while diff > 0:
             individual = Individual()
             individual.population = self
@@ -373,18 +371,22 @@ class Individual(models.Model):
         if newcode == self.code:
             #print("dont set same code")
             return False
+        self.code = newcode
+        self.code_length = len(newcode)
+        self.reset()
+        return True
+        
+    def reset(self):
         self.fitness_sum = 0
         self.fitness_evalcount = 0
         self.fitness = None
         self.execution_counter = 0
         self.step_counter = 0
         self.execution_time = 0
-        self.code = newcode
-        self.code_length = len(newcode)
         if self.population.problem.sync_to_database == True:
             self.save()        
-        return True
-   
+        
+        
     def save(self):
         if self.wasChanged == True or self.id == None:
             self.wasChanged = False
