@@ -16,7 +16,6 @@ def updateThread():
     while True:
         os.system("git pull")
         os.system("python3 manage.py migrate")
-        print("thread '%s' exited " % cmd)
         time.sleep(3600)
 
 
