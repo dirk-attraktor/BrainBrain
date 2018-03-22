@@ -257,9 +257,9 @@ class Population(models.Model):
                         if diff == 0:
                             break
                     else:
-                        individuals[c-10+indsToReplace].code = individual_data["code"]
-                        individuals[c-10+indsToReplace].code = individual_data["fitness_evalcount"]
-                        individuals[c-10+indsToReplace].code = individual_data["fitness_sum"]
+                        individuals[c-10+indsToReplace].setCode(individual_data["code"])
+                        individuals[c-10+indsToReplace].fitness_evalcount = individual_data["fitness_evalcount"]
+                        individuals[c-10+indsToReplace].fitness_sum = individual_data["fitness_sum"]
                         indsToReplace -=1
         while diff > 0:
             individual = Individual()
