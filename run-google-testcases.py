@@ -36,17 +36,17 @@ def train(taskname):
     def fitnessF(individual):
         return sum(task._score_individual(individual).episode_rewards)
     
-    problem = Regression("google_testcases-%s" % taskname, max_generations = -1, max_individuals = 100000,max_populationsize = 100, max_code_length=20,min_code_length=20,max_steps = 500,usePriorKnowledge=False)
+    problem_regression = Regression("google_testcases-%s" % taskname, max_generations = -1, max_individuals = 100000,max_populationsize = 100, max_code_length=20,min_code_length=20,max_steps = 500,usePriorKnowledge=False)
+    #problem_regression.problem.sync_to_database = True
+    startfitness = problem_regression.selected_population.getFitnessStats()
+    problem_regression.regress(fitnessF)
+    problem_regression.save()
+    endfitness = problem_regression.selected_population.getFitnessStats()
     
-    startfitness = problem.selected_population.getFitnessStats()
-    problem.regress(fitnessF)
-    problem.save()
-    endfitness = problem.selected_population.getFitnessStats()
-    
-    print("%s Individuals created" % problem.selected_population.individual_count)
+    print("%s Individuals created" % problem_regression.selected_population.individual_count)
     print("max fit for population: %s" % endfitness["max"])
-    if problem.selected_population.individual_count > 0:
-        fpi = endfitness["max"] / float(problem.selected_population.individual_count)
+    if problem_regression.selected_population.individual_count > 0:
+        fpi = endfitness["max"] / float(problem_regression.selected_population.individual_count)
     else:
         fpi = -1
     maxDiffFitness = endfitness["max"] - startfitness["max"]

@@ -43,6 +43,7 @@ class Evolution():
             usePriorKnowledge = True,
             useP2P = True,
             warmup = False,
+            sync_to_database = False, # set True for evolutions that are multiprocessed and need db sync
         ):
         
         self.problem = None
@@ -62,10 +63,12 @@ class Evolution():
             problem = Problem()
             new = True
         self.referenceFunctionRate = referenceFunctionRate
-        problem.name = name
-        problem.description = description
         self.usePriorKnowledge = usePriorKnowledge
         self.useP2P = useP2P
+
+        problem.name = name
+        problem.description = description
+        problem.sync_to_database = sync_to_database
         problem.default_max_populationsize = max_populationsize
         problem.default_max_individuals = max_individuals
         problem.default_max_generations = max_generations
@@ -292,6 +295,7 @@ def score_individual(individual,io_seqs):
 def ga_step(population):
     #print("GA_STEP")
     #print(population.problem.name)
+
     if population.garunning == True:
         print("No step")
         return
@@ -299,16 +303,42 @@ def ga_step(population):
     if population.max_generations != -1 and population.generation_count >= population.max_generations:
         print("Max generations reached")
         return False
-    changecnt = mutate_and_crossover(population)
-    if changecnt == 0:
+    if population.max_individuals != -1 and population.individual_count >= population.max_individuals:
         print("Max individuals reached")
-        return False
+        return False     
+
+    if population.problem.sync_to_database == True:
+        print("SYNC POP")
+        if population.lock() == False:
+            print("no ga step, population is locked")
+            return         
+    changecnt = mutate_and_crossover(population)
     population.individual_count += changecnt   
     population.generation_count += 1
     population.garunning = False
+    if population.problem.sync_to_database == True:
+        population.unlock()
+  
     return True   
 
-def mutate_code_base(code_tokens, mutation_rate):
+    
+    
+mutate_code_evolution = Evolution(
+    "mutate_code", 
+    max_generations = -1,
+    max_individuals = -1,
+    max_populationsize = 100,
+    referenceFunctionRate=0.7,
+    max_code_length = 100, 
+    min_code_length = 10,
+    max_steps = 1000,
+    min_fitness_evaluation_per_individual = 1500,
+    usePriorKnowledge = True,
+    useP2P = True,  #warmup = True,
+    sync_to_database = True,
+)
+@mutate_code_evolution.evolve      
+def mutate_code_base(code_tokens):
   """Mutate a single code string.
   Args:
     code_tokens: A string/list/Individual of BF code chars. Must end with EOS
@@ -320,7 +350,7 @@ def mutate_code_base(code_tokens, mutation_rate):
   Raises:
     ValueError: If `code_tokens` does not end with EOS symbol.
   """
- 
+  mutation_rate = 0.1
   cs = list(code_tokens)
   mutated = False
   
@@ -367,47 +397,28 @@ def mutate_code_base(code_tokens, mutation_rate):
     return "".join(cs)
   else:
     return code_tokens
- 
-def crossover_code_base(parent1, parent2):
-  """Performs crossover mating between two code strings.
-  Crossover mating is where a random position is selected, and the chars
-  after that point are swapped. The resulting new code strings are returned.
-  Args:
-    parent1: First code string.
-    parent2: Second code string.
-  Returns:
-    A 2-tuple of children, i.e. the resulting code strings after swapping.
-  """
-  max_parent, min_parent = ((parent1, parent2) if len(parent1) > len(parent2) else (parent2, parent1))
-  pos = random.randrange(len(max_parent))
-  if pos >= len(min_parent):
-    child1 = max_parent[:pos]
-    child2 = min_parent + max_parent[pos:]
-  else:
-    child1 = max_parent[:pos] + min_parent[pos:]
-    child2 = min_parent[:pos] + max_parent[pos:]
-  return child1, child2 
-    
-    
-mutate_code_evolution = Evolution(
-    "mutate_code", 
-    max_generations = -1,
-    max_individuals = -1,
-    max_populationsize = 100,
-    referenceFunctionRate=0.7,
-    max_code_length = 100, 
-    min_code_length = 10,
-    max_steps = 1000,
-    min_fitness_evaluation_per_individual = 1500,
-    usePriorKnowledge = True,
-    useP2P = True,
-    #warmup = True,
-)
-@mutate_code_evolution.evolve   
+
 def mutate_code(code_tokens):
-    return mutate_code_base(code_tokens, mutation_rate=0.1)
+    tries = 10
+    result = code_tokens
+    while tries > 0:
+        tries -= 1
+        result =  mutate_code_base(code_tokens)
+        result = ''.join([i if ord(i) < 128 else '' for i in result])
+        len_code_tokens = len(code_tokens)
+        len_result = len(result)
+        if len_result <  len_code_tokens/2 or len_result > len_code_tokens*2:
+            #print("mutate_code bad result")
+            mutate_code_evolution.reward(-100,100)
+            mutate_code_evolution.save()
+            continue
+        break
+    if len(result) < 3:
+        return code_tokens
+    return result
+  
 
-
+  
 crossover_code_evolution = Evolution(
     "crossover_code", 
     max_generations = -1, 
@@ -419,67 +430,49 @@ crossover_code_evolution = Evolution(
     max_steps = 1000,
     min_fitness_evaluation_per_individual = 1500,
     usePriorKnowledge = True,
-    useP2P = True,
-    #warmup = True,
+    useP2P = True, #warmup = True,
+    sync_to_database = True,    
 )
-@crossover_code_evolution.evolve       
-def crossover_code(parent1_parent2):  # parent1 and  parent2 separated by '_'
-  parent1, parent2 = parent1_parent2.split("_",1)
-  child1, child2 = crossover_code_base(parent1, parent2 )
-  return "%s_%s" % (child1, child2)
-  
-def _make_even(n):
-  """Return largest even integer less than or equal to `n`."""
-  return (n >> 1) << 1
-
-# FIRST item has factor x times the propability of being picked
-def randomchoiceLinear(listlength, factor):
-    while True: 
-        index = random.randint(0, listlength - 1)        
-        factorForIndex =  1+((index) * ( (float(factor)-1) / (listlength) ) )
-        prop = float(factorForIndex) / float(factor)
-        if random.random() < prop:
-            continue
-        return index  
+@crossover_code_evolution.evolve      
+def crossover_code_base(parent1_parent2):
+    parent1, parent2 = parent1_parent2.split("_",1)
+    max_parent, min_parent = ((parent1, parent2) if len(parent1) > len(parent2) else (parent2, parent1))
+    pos = random.randrange(len(max_parent))
+    if pos >= len(min_parent):
+        child1 = max_parent[:pos]
+        child2 = min_parent + max_parent[pos:]
+    else:
+        child1 = max_parent[:pos] + min_parent[pos:]
+        child2 = min_parent[:pos] + max_parent[pos:]
+    children = [x for x in [ child1, child2 ] if len(x) > 3]
+    if len(children) == 0:
+        return random.choice([ child1, child2 ])
         
-def reward_conversion(reward):
-  """Convert real value into positive value."""
-  if reward <= 0:
-    return 0.05
-  return reward + 0.05
+    return random.choice(children)
+   
+def crossover_code(parent1, parent2):  
+    tries = 10
+    result = parent1
+    while tries > 0:
+        tries -= 1 
+        parent1_parent2 ="%s_%s" % (parent1, parent2 )
+        result = crossover_code_base(parent1_parent2)
+        result = ''.join([i if ord(i) < 128 else '' for i in result])
+        len_min_parent = min([ len(parent1), len(parent2)])
+        len_max_parent = max([ len(parent1), len(parent2)])
+        len_result = len(result)
+        if len_result <  1 or len_result > len_max_parent*2:
+            print("crossover_code_base bad result")
+            crossover_code_evolution.reward(-100,100)
+            crossover_code_evolution.save()
+            continue
+        break 
+    if len(result) < 3:
+        return parent2        
+    return result
+  
 
-def roulette_selection(individuals, k):
-  """Select `k` individuals with prob proportional to fitness.
-  Each of the `k` selections is independent.
-  Warning:
-    The roulette selection by definition cannot be used for minimization
-    or when the fitness can be smaller or equal to 0.
-  Args:
-    population: A list of Individual objects to select from.
-    k: The number of individuals to select.
-  Returns:
-    A list of selected individuals.
-  """
-  fitnesses = np.asarray(
-      [reward_conversion(ind.fitness)
-       for ind in individuals])
-  assert np.all(fitnesses > 0)
-
-  sum_fits = fitnesses.sum()
-  chosen = [None] * k
-  for i in range(k):
-    u = random.random() * sum_fits
-    sum_ = 0
-    for ind, fitness in zip(individuals, fitnesses):
-      sum_ += fitness
-      if sum_ > u:
-        chosen[i] = ind
-        break
-    if not chosen[i]:
-      chosen[i] = individuals[-1]
-
-  return chosen        
-             
+  
 def adjust_max_codelength(population,individuals):
     #print("adjust_max_codelength")
     icodelength = [len(i.code) for i in individuals[0:int(len(individuals)/10)]]
@@ -490,9 +483,9 @@ def adjust_max_codelength(population,individuals):
     if avg_codelength * 3 > max_codelength :
         if population.max_code_length < max_codelength *2:
             if population.max_steps * 2 > population.max_code_length:
-                population.max_code_length = int(population.max_code_length + 1)
+                population.max_code_length = int(population.max_code_length + 3)
     else:
-        population.max_code_length = int(population.max_code_length - 1 )
+        population.max_code_length = int(population.max_code_length - 3 )
     if population.max_code_length < 30:
         population.max_code_length = 30
     if population.max_code_length > 1000:
@@ -530,6 +523,159 @@ def adjust_max_steps(population,individuals):
         print("pop maxsteps %s " % population.max_steps)  
         print("avg_steps: %s" % avg_steps)
 
+def mutate_and_crossover(population):
+
+    individuals = population.getIndividuals()
+    individuals.sort(key=lambda x:x.code_length,reverse = False)
+    individuals.sort(key=lambda x:x.step_counter,reverse = False)
+    individuals.sort(key=lambda x:x.fitness,reverse = True)
+    average_fitness = sum([i.fitness for i in individuals]) / len(individuals)
+    
+    last_best_fitness = population.best_fitness
+    last_best_code = population.best_code
+    last_average_fitness =  population.average_fitness
+    
+    best_individual = individuals[0]
+    
+    mutate_code_evolution_reward = 0
+    crossover_code_evolution_reward = 0
+    
+    if best_individual.code != last_best_code:
+        if last_best_fitness != None:
+            if best_individual.fitness > last_best_fitness:
+                print("new is better")
+                f=open("track_top_individuals.csv","ab")
+                f.write(("%s_%s__" % (last_best_code,best_individual.code)).encode('utf-8'))
+                f.flush()
+                f.close()
+                mutate_code_evolution_reward += 1
+            
+        population.best_fitness = best_individual.fitness
+        population.best_code = best_individual.code
+     
+    if last_average_fitness != None:
+        if average_fitness > last_average_fitness:
+            #print("better is better")
+            crossover_code_evolution_reward += 1
+            mutate_code_evolution_reward += 1
+            
+    population.average_fitness = average_fitness
+    
+    mutate_code_evolution.reward(mutate_code_evolution_reward)
+    crossover_code_evolution.reward(crossover_code_evolution_reward)
+    mutate_code_evolution.save()
+    crossover_code_evolution.save()
+    
+    
+    adjust_max_steps(population,individuals)
+    adjust_max_codelength(population,individuals)    
+    
+    
+    
+    if population.generation_count % 20 == 0:
+        print("Problem '%s'" % (population.problem.name ))
+        print("Generation '%s'" % (population.generation_count ))
+        print("Individual count '%s'" % (population.individual_count ))
+        print("Best Fitness: %s" % individuals[0].fitness)
+        print("avg Fitness: %s" % average_fitness)
+        #print("mutate_code_evolution_reward: %s" % mutate_code_evolution_reward)
+        #print("crossover_code_evolution_reward: %s" % crossover_code_evolution_reward)
+        x = bytearray(best_individual.code,"UTF-8")
+        if len(x) > 50:
+            print("Best: %s" % x[:100])
+        else:
+            print("Best: %s" % x)
+         
+    l = len(individuals)
+    for i in range(l-1,0,-1):
+        individual = individuals[i]
+        mutation_propability = 1.0 / l * i  # prop is reverse to fitness
+        #print("mutation_propability %s" % mutation_propability)
+        if random.random() < mutation_propability:
+            #print("mutate")
+            newcode = mutate_code(individual.code)
+            individual.setCode(newcode)
+            
+    for i in range(1, l):
+        crossover_propability = 1.0 / l * (l-i) # prop is fitness
+        #print("crossover_propability %s" % crossover_propability)
+        if random.random() < crossover_propability:
+            #print("crossover")
+            individual1 = individuals[i]
+            j = random.randint(1,l-1)
+            individual2 = individuals[j]
+            newcode = crossover_code(individual1.code, individual2.code) 
+            individuals[j].setCode(newcode)
+           
+    for i in range(1, l):
+        individual = individuals[i]
+        insert_delete_propability = 0.1
+        if len(individual.code) > individual.population.max_code_length or random.random() < insert_delete_propability:
+            pos = random.randint(0,(len(individual.code )-2))
+            newcode = individual.code[:pos] + individual.code[pos+1:]
+            individual.setCode( newcode)
+            
+        if len(individual.code) < individual.population.min_code_length or random.random() < insert_delete_propability:
+            pos = random.randint(0,(len(individual.code )-1))
+            newcode = individual.code[:pos] +  random.choice(GENES) + individual.code[pos:]
+            individual.setCode( newcode)
+           
+    return len([i for i in individuals if i.fitness == None])
+
+    
+    
+# FIRST item has factor x times the propability of being picked
+def randomchoiceLinear(listlength, factor):
+    while True: 
+        index = random.randint(0, listlength - 1)        
+        factorForIndex =  1+((index) * ( (float(factor)-1) / (listlength) ) )
+        prop = float(factorForIndex) / float(factor)
+        if random.random() < prop:
+            continue
+        return index  
+   
+def _make_even(n):
+  """Return largest even integer less than or equal to `n`."""
+  return (n >> 1) << 1
+   
+def reward_conversion(reward):
+  """Convert real value into positive value."""
+  if reward <= 0:
+    return 0.05
+  return reward + 0.05
+
+def roulette_selection(individuals, k):
+  """Select `k` individuals with prob proportional to fitness.
+  Each of the `k` selections is independent.
+  Warning:
+    The roulette selection by definition cannot be used for minimization
+    or when the fitness can be smaller or equal to 0.
+  Args:
+    population: A list of Individual objects to select from.
+    k: The number of individuals to select.
+  Returns:
+    A list of selected individuals.
+  """
+  fitnesses = np.asarray(
+      [reward_conversion(ind.fitness)
+       for ind in individuals])
+  assert np.all(fitnesses > 0)
+
+  sum_fits = fitnesses.sum()
+  chosen = [None] * k
+  for i in range(k):
+    u = random.random() * sum_fits
+    sum_ = 0
+    for ind, fitness in zip(individuals, fitnesses):
+      sum_ += fitness
+      if sum_ > u:
+        chosen[i] = ind
+        break
+    if not chosen[i]:
+      chosen[i] = individuals[-1]
+
+  return chosen        
+                
 def mutate_codelength(individual):  
     
     if random.random() < 0.1:
@@ -555,8 +701,8 @@ def mutate_codelength(individual):
             pos = random.randint(0,(len(individual.code )-1))
             newcode = individual.code[:pos] +  random.choice(GENES) + individual.code[pos:]
             individual.setCode( newcode)
-        
-def mutate_and_crossover(population):
+      
+def mutate_and_crossover_old(population):
     #print("mutate_and_crossover")
     """Take a generational step over a population.
       Transforms population of parents into population of children (of the same

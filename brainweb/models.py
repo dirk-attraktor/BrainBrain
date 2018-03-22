@@ -14,7 +14,13 @@ def lock(modelobject):
         return lockid
     return None
 
- 
+class Lock(models.Model):
+    id       = models.AutoField(primary_key=True)
+    created  = models.DateTimeField('created',auto_now_add=True)
+    updated  = models.DateTimeField('updated',auto_now=True)  
+    population_id = models.CharField( max_length=200,default="")
+
+    
 class Peer(models.Model):
     id       = models.AutoField(primary_key=True)
     created  = models.DateTimeField('created',auto_now_add=True)
@@ -54,6 +60,8 @@ class Problem(models.Model):
     default_max_steps =  models.IntegerField(default = -1) 
     default_min_fitness_evaluation_per_individual =  models.IntegerField(default = -1) 
  
+    sync_to_database = models.BooleanField(default=False)
+
     # -> populations
     # -> referencefunctions
       
@@ -152,9 +160,44 @@ class Population(models.Model):
     min_code_length =  models.IntegerField(default = 20)
     max_steps  =  models.IntegerField(default = 20)
     min_fitness_evaluation_per_individual  =  models.IntegerField(default = 1)
+    
+    # set right before ga_step in mutate_and_crossover, after all inds are evaluated
+    best_fitness =  models.FloatField(default = None,blank=True,null=True)
+    best_code    = models.CharField( max_length=200000,default="")
+    average_fitness = models.FloatField(default = None,blank=True,null=True)
+    
     # -> individuals
        
-       
+    def lock(self):
+        try:
+            lock = Lock.objects.get(population_id = self.id)
+            if lock.updated <  datetime.datetime.now()-datetime.timedelta(minutes=10):
+                print("lock has expired")
+                lock.save()
+                return True
+            return False
+        except:
+            print("Pop %s not locked,locking" % self)
+            l = Lock()
+            l.population_id = self.id
+            l.save()
+            return True
+            
+    def unlock(self):
+        try:
+            lock = Lock.objects.get(population_id = self.id)
+            lock.delete()
+        except:
+            print("Pop %s not locked, not locking" % self)
+            
+    def isLocked(self):
+        try:
+            lock = Lock.objects.get(population_id = self.id)
+            return True
+        except:
+            print("Pop %s not locked" % self)
+            return False
+            
     def __init__(self,*args,**kwargs):
         self.individual_cache = None#
         self.garunning = False
@@ -224,7 +267,8 @@ class Population(models.Model):
             diff -= 1
     
     def getIndividuals(self):
-        if self.individual_cache == None:
+        #print("getIndividuals")
+        if self.individual_cache == None or self.problem.sync_to_database == True:
             self.individual_cache = [i for i in self.individuals.all()]
         try:
             return [i for i in self.individual_cache]
@@ -233,13 +277,14 @@ class Population(models.Model):
         return None         
         
     def getUnratedIndividual(self):
+        #print("getUnratedIndividual")
         try:
             return random.choice([i for i in self.getIndividuals() if i.fitness == None or i.fitness_evalcount < self.min_fitness_evaluation_per_individual ])
         except:
             return None 
             
     def getBestIndividual(self):
-        if self.individual_cache == None:
+        if self.individual_cache == None or self.problem.sync_to_database == True:
             self.individual_cache = [i for i in self.individuals.all()]
         try:
             return [i for i in self.individual_cache if i.fitness != None][0]
@@ -283,7 +328,7 @@ class Individual(models.Model):
     updated  = models.DateTimeField('updated',auto_now=True)  
     population = models.ForeignKey(Population, on_delete=models.CASCADE, related_name='individuals')
 
-    code     = models.CharField( max_length=20000,default=".")
+    code     = models.CharField( max_length=200000,default=".")
     code_length =  models.FloatField(default = 10)
 
     
@@ -309,6 +354,8 @@ class Individual(models.Model):
         self.fitness_sum += value
         self.fitness_evalcount += 1
         self.fitness = self.fitness_sum / self.fitness_evalcount
+        if self.population.problem.sync_to_database == True:
+            self.save()
       
     def execute(self, input):
         start = time.time()    
@@ -332,6 +379,8 @@ class Individual(models.Model):
         self.execution_time = 0
         self.code = newcode
         self.code_length = len(newcode)
+        if self.population.problem.sync_to_database == True:
+            self.save()        
         return True
    
     def save(self):
