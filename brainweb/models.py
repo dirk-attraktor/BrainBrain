@@ -385,6 +385,7 @@ class Individual(models.Model):
         return True
         
     def reset(self):
+        self.wasChanged = True    
         self.fitness_sum = 0
         self.fitness_evalcount = 0
         self.fitness = None
