@@ -7,6 +7,10 @@ import requests
 import json
 import p2pClient
 from django.db import connection
+import datetime
+from django.utils import timezone
+
+
 def lock(modelobject):
     lockid = random.randint(0,9999999)
     updated = modelobject.objects.filter(pk=modelobject.id,lock="").update(lock = lockid)
@@ -174,14 +178,14 @@ class Population(models.Model):
     def lock(self):
         try:
             lock = Lock.objects.get(population_id = self.id)
-            if lock.updated <  datetime.datetime.now()-datetime.timedelta(minutes=10):
+            if lock.updated <  timezone.now()-datetime.timedelta(minutes=10):
                 print("%s lock has expired")
                 lock.save()
                 return True
             print("%s is locked, not locking again" % self)
             return False
-        except:
-            print("%s not locked, locking" % self)
+        except Exception as e:
+            print("%s not locked, locking: %s" % (self,e))
             l = Lock()
             l.population_id = self.id
             l.save()
@@ -189,18 +193,22 @@ class Population(models.Model):
             
     def unlock(self):
         try:
-            lock = Lock.objects.get(population_id = self.id)
-            lock.delete()
-            print("%s unlocked" % self)
-        except:
-            print("%s not locked, not unlocking" % self)
+            locks = Lock.objects.filter(population_id = self.id)
+            if len(locks)> 0:
+                for lock in locks:
+                    lock.delete()
+                print("%s unlocked" % self)
+            else:
+                print("%s not locked, not unlocking: %s" % (self,e))
+        except Exception as e:
+            print("%s not locked, not unlocking: %s" % (self,e))
             
     def isLocked(self):
         try:
             lock = Lock.objects.get(population_id = self.id)
             return True
-        except:
-            print("%s is not locked" % self)
+        except Exception as e:
+            print("%s is not locked: %s" % (self,e))
             return False
             
     def __init__(self,*args,**kwargs):

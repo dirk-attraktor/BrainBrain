@@ -720,6 +720,7 @@ def mutate_codelength(individual):
             newcode = individual.code[:pos] +  random.choice(GENES) + individual.code[pos:]
             individual.setCode( newcode)
       
+      
 def mutate_and_crossover_old(population):
     #print("mutate_and_crossover")
     """Take a generational step over a population.

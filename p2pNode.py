@@ -5,6 +5,7 @@ import threading
 import json
 from datetime import datetime
 from datetime import datetime, timedelta
+from django.utils import timezone
 
 from SimpleWebSocketServer import SimpleWebSocketServer, WebSocket
 from websocket import create_connection
@@ -164,7 +165,7 @@ class p2pNode():
         except Exception as e: 
             print("websocket connection client to supernode %s failed %s" % (peer,e))
             peer.failcount += 1
-            peer.lastfail = datetime.now()
+            peer.lastfail = timezone.now()
             peer.save()
             return 
         peer.failcount = 0
@@ -241,7 +242,7 @@ class p2pNode():
         max_supernode_connections = 1
         while True:
             if len(supernode_connection_threads) <  max_supernode_connections:
-                peers = Peer.objects.filter(supernode=True).filter(Q( lastfail__lt=(datetime.now() - timedelta(minutes=10))) | Q(lastfail__isnull=True)).exclude(host__in=list(supernode_connection_threads.keys()))
+                peers = Peer.objects.filter(supernode=True).filter(Q( lastfail__lt=(timezone.now() - timedelta(minutes=10))) | Q(lastfail__isnull=True)).exclude(host__in=list(supernode_connection_threads.keys()))
                 if peers.count() > 0: 
                     print("supernodes available,starting client thread")
                     peer = random.choice(peers)
