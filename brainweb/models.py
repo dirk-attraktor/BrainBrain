@@ -199,7 +199,7 @@ class Population(models.Model):
                     lock.delete()
                 print("%s unlocked" % self)
             else:
-                print("%s not locked, not unlocking: %s" % (self,e))
+                print("%s not locked, not unlocking" % (self))
         except Exception as e:
             print("%s not locked, not unlocking: %s" % (self,e))
             
