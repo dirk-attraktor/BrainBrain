@@ -80,11 +80,7 @@ def population_delete(request,pk):
 def referencefunction_reset(request,pk):
     referenceFunction = models.ReferenceFunction.objects.get(pk=pk)
     problem = referenceFunction.problem
-    referenceFunction.fitness = None
-    referenceFunction.fitness_sum = 0
-    referenceFunction.fitness_evalcount = 0
-    referenceFunction.execution_counter = 0
-    referenceFunction.execution_time = 0
+    referenceFunction.reset()
     referenceFunction.save()
     return HttpResponseRedirect(reverse('problem_show', args=(problem.id,)))     
      

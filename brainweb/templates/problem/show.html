@@ -14,67 +14,74 @@
 
 
 {% block content %}
-
     <div class="row">
         <div class="col-md-6">
             <div class="box">
-                <div class="box-header">
-                    <h3 class="box-title">{{problem.populations.count}} Populations <a href="/problem/{{ problem.id }}/cleanup">Cleanup</a></h3>
+                <div class="box-header with-border">
+                    <h3 class="box-title">Problem Main Settings</h3>
                 </div>
+                <!-- /.box-header -->
                 <div class="box-body">
-                    <div id="example2_wrapper" class="dataTables_wrapper form-inline dt-bootstrap">
-                        <div class="row">
-                            <div class="col-sm-6"></div>
-                            <div class="col-sm-6"></div>
-                        </div>
-                        <div class="row">
-                            <div class="col-sm-12">
-                                <table id="example2" class="table table-bordered table-hover dataTable" role="grid">
-                                    <thead>
-                                        <tr role="row">
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Id</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Max Popsize</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Pop Size</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Best. Fitness</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg. Fitness</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> max inds</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> ind count</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> max gens</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> gen count</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> max code length</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg exec time</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for object in problem.populations.all %}
-                                            <tr>
-                                                <td><a href="/population/{{ object.id }}">{{ object.id }}</a></td>
-                                                <td>{{ object.max_populationsize }}</td>
-                                                <td>{{ object.individuals.count }}</td>
-                                                <td>{{ object.getFitnessStats.max }}</td>
-                                                <td>{{ object.getFitnessStats.avg }}</td>
-                                                <td>{{ object.max_individuals }}</td>
-                                                <td>{{ object.individual_count }}</td>
-                                                <td>{{ object.max_generations }}</td>
-                                                <td>{{ object.generation_count }}</td>
-                                                <td>{{ object.max_code_length }}</td>
-                                                <td>{{ object.getFitnessStats.execution_time }}</td>
-                                                <td>
-                                                    <a href="/population/{{ object.id }}/delete">Delete</a>
-                                                </td>
-                                            </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                    <div class="col-md-9">
+                        <dl class="dl-horizontal">
+                            <dt>Created</dt>
+                            <dd>{{problem.created|date:"d M. H:i" }}</dd>
+                            <dt>Updated</dt>
+                            <dd>{{problem.created|date:"d M. H:i" }}</dd>
+                            <br>
+                            
+                            <dt>Use Prior Knowledge</dt>
+                            <dd>{{problem.usePriorKnowledge }}</dd>
+                            
+                            <dt>Use P2P</dt>
+                            <dd>{{problem.useP2P }}</dd>
+                            
+                            <dt>Sync to database</dt>
+                            <dd>{{problem.sync_to_database }}</dd>                            
+                        </dl>
                     </div>
                 </div>
-                <!-- /.box-body -->
-            </div>    
-            
-            
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="box">
+                <div class="box-header with-border">
+                    <h3 class="box-title">Problem Population defaults</h3>
+                </div>
+                <!-- /.box-header -->
+                <div class="box-body">
+                    <div class="col-md-9">
+                        <dl class="dl-horizontal">
+                            <dt>Max population size</dt>
+                            <dd>{{problem.default_max_populationsize }}</dd>
+                            <dt>Max individuals</dt>
+                            <dd>{{problem.default_max_individuals }}</dd>
+                            <dt>Max generations</dt>
+                            <dd>{{problem.default_max_generations }}</dd>
+                            
+                            <br>
+                            
+                            <dt>Min code length</dt>
+                            <dd>{{problem.default_min_code_length }}</dd>                            
+                            <dt>Max code length</dt>
+                            <dd>{{problem.default_max_code_length }}</dd>
+                            
+                            <dt>Default Max steps</dt>
+                            <dd>{{problem.default_max_steps }}</dd>
+                            
+                            <dt>Min fit. eval. per ind.</dt>
+                            <dd>{{problem.default_min_fitness_evaluation_per_individual }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>        
+    </div>
+
+
+
+    <div class="row">
+        <div class="col-md-12"> 
             <div class="box">
                 <div class="box-header">
                     <h3 class="box-title">Top 10 Individuals</h3>
@@ -93,26 +100,42 @@
                                         
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Id</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Population</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Execution Counter</th>
+
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness Evals</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Eval Counter</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Eval Time</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Max Code length</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness</th>
+                                            
+                                            
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Steps</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Mem Usage</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Input Usage</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Input Size</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Output Size</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Time uS</th>
+                                            
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Code length</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Actions</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Code</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for object in problem.getTopIndividuals %}
                                             <tr>
                                                     <td><a href="/individual/{{ object.id }}">{{ object.id }}</a></td>
-                                                    <td>{{ object.population }}</td>
+                                                    <td><a href="/population/{{ object.population.id }}">{{ object.population.id }}</a></td>
+                                                    <td>{{ object.execution_counter  |floatformat:0 }}</td>
+
+                                                    <td>{{ object.fitness_evalcount |floatformat:0  }}</td>
                                                     <td>{{ object.fitness }}</td>
-                                                    <td>{{ object.fitness_evalcount }}</td>
-                                                    <td>{{ object.execution_counter }}</td>
-                                                    <td>{{ object.execution_time }}</td>
-                                                    <td>{{ object.population.max_code_length }}</td>                                                    
-                                                    <td>{{ object.code | length}}</td>
+                                                    
+                                                    <td>{{ object.average_program_steps |floatformat:2 }}</td>                                                    
+                                                    <td>{{ object.average_memory_usage |floatformat:2 }}</td>
+                                                    <td>{{ object.average_inputbuffer_usage |floatformat:2 }}</td>
+                                                    <td>{{ object.average_input_size |floatformat:2 }}</td>
+                                                    <td>{{ object.average_output_size |floatformat:2 }}</td>
+                                                    <td>{{ object.average_execution_time |floatformat:2 }}</td>
+                                                    
+                                                    <td>{{ object.code_length |floatformat:0 }} </td>
+                                                    <td>{{ object.code}}</td>
                                                 <td>
                                                 </td>
                                             </tr>
@@ -124,70 +147,144 @@
                     </div>
                 </div>
                 <!-- /.box-body -->
-            </div>                
-          
-        
-                      
-        </div>
-        
-    <div class="col-md-6">
-      <!-- AREA CHART -->
-      <div class="box box-primary">
-        <div class="box-header with-border">
-          <h3 class="box-title">Population Stats</h3>
+            </div>            
+        </div> <!-- /col-md-12 -->
+    </div> <!-- /row -->
+    
+    
+    
+    
+    <div class="row">
+        <div class="col-md-12"> 
+          <div class="box">
+            <div class="box-header">
+                <h3 class="box-title">Reference Functions</h3>
+            </div>
+            <div class="box-body">
+                <div id="example2_wrapper" class="dataTables_wrapper form-inline dt-bootstrap">
+                    <div class="row">
+                        <div class="col-sm-6"></div>
+                        <div class="col-sm-6"></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <table id="example2" class="table table-bordered table-hover dataTable" role="grid">
+                                <thead>
+                                    <tr role="row">
+                                    
+                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Id</th>
+                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Name</th>
+                                        
+                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness</th>
+                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness Evaluations</th>
+                                        
+                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Execution Counter</th>
+                                        
+                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg. Input Size</th>
+                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg. Output Size</th>
+                                        
+                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg. Execution Time uS</th>
+                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for object in problem.referencefunctions.all %}
+                                        <tr>
+                                                <td>{{ object.id }}</td>
+                                                <td>{{ object.name }}</td>
+                                                
+                                                <td>{{ object.fitness }}</td>
+                                                <td>{{ object.fitness_evalcount }}</td>
+                                                
+                                                <td>{{ object.execution_counter }}</td>
+                                                
+                                                <td>{{ object.average_input_size }}</td>
+                                                <td>{{ object.average_output_size }}</td>
+                                                
+                                                <td>{{ object.average_execution_time }}</td>
+                                            <td>
+                                                <a href="/referencefunction/{{ object.id }}/reset">Reset</a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+          <!-- /.box-body -->
+          </div>            
+        </div> <!-- /col-md-12 -->
+    </div> <!-- /row -->    
+              
+    
+    
+    
+    <div class="row">
+        <div class="col-md-12"> 
+          <div class="box box-primary">
+            <div class="box-header with-border">
+              <h3 class="box-title">Population Stats</h3>
 
-          <div class="box-tools pull-right">
-            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i>
-            </button>
-            <button type="button" class="btn btn-box-tool" data-widget="remove"><i class="fa fa-times"></i></button>
+              <div class="box-tools pull-right">
+                <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i>
+                </button>
+                <button type="button" class="btn btn-box-tool" data-widget="remove"><i class="fa fa-times"></i></button>
+              </div>
+            </div>
+            <div class="box-body">
+              <div class="chart">
+                <canvas id="populationsFitness"></canvas>
+                <script>
+                        var ctx = document.getElementById('populationsFitness').getContext('2d');
+                        var labels = []
+                        var fitnessdata = []
+                        {% for object in problem.populations.all %} 
+                            labels.push("{{ object.id}}");
+                            fitnessdata.push({% if object.best_fitness != None %}{{ object.best_fitness}}{% else %}undefined{% endif %});
+                        {% endfor %}
+                        
+                        var chart = new Chart(ctx, {
+                            // The type of chart we want to create
+                            type: 'line',
+
+                            // The data for our dataset
+                            data: {
+                                //labels: ["January", "February", "March", "April", "May", "June", "July"],
+                                labels: labels.reverse(),
+                                datasets: [{
+                                    label: "Max Population Fitness",
+                                    backgroundColor: 'rgb(255, 99, 132)',
+                                    borderColor: 'rgb(255, 99, 132)',
+                                    //data: [0, 10, 5, 2, 20, 30, 45 , ],
+                                    data: fitnessdata.reverse(),
+                                    fill : false,
+                                }]
+                            },
+
+                            // Configuration options go here
+                            options: {
+                                
+                            }
+                        });
+                </script>
+              </div> &
+            <!-- /.box-body -->
           </div>
         </div>
-        <div class="box-body">
-          <div class="chart">
-            <canvas id="populationsFitness"></canvas>
-            <script>
-                var ctx = document.getElementById('populationsFitness').getContext('2d');
-                    var labels = []
-                    var fitnessdata = []
-                    {% for object in problem.populations.all %} 
-                        labels.push("{{ object.id}}");
-                        fitnessdata.push({{ object.getFitnessStats.max}});
-                    {% endfor %}
-                    
-                    var chart = new Chart(ctx, {
-                        // The type of chart we want to create
-                        type: 'line',
+        </div> <!-- /col-md-12 -->
+    </div> <!-- /row -->    
+              
 
-                        // The data for our dataset
-                        data: {
-                            //labels: ["January", "February", "March", "April", "May", "June", "July"],
-                            labels: labels.reverse(),
-                            datasets: [{
-                                label: "Max Population Fitness",
-                                backgroundColor: 'rgb(255, 99, 132)',
-                                borderColor: 'rgb(255, 99, 132)',
-                                //data: [0, 10, 5, 2, 20, 30, 45 , ],
-                                data: fitnessdata.reverse(),
-                                fill : false,
-                            }]
-                        },
-
-                        // Configuration options go here
-                        options: {
-                            
-                        }
-                    });
-
-            </script>
-          </div>
-        </div>
-        <!-- /.box-body -->
-      </div>
-      <!-- /.box -->
-          
-      <div class="box">
+    
+    
+    
+    <div class="row">
+        <div class="col-md-12"> 
+            <div class="box">
                 <div class="box-header">
-                    <h3 class="box-title">Reference Functions</h3>
+                    <h3 class="box-title">{{problem.populations.count}} Populations <a href="/problem/{{ problem.id }}/cleanup">Cleanup</a></h3>
                 </div>
                 <div class="box-body">
                     <div id="example2_wrapper" class="dataTables_wrapper form-inline dt-bootstrap">
@@ -200,29 +297,57 @@
                                 <table id="example2" class="table table-bordered table-hover dataTable" role="grid">
                                     <thead>
                                         <tr role="row">
-                                        
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Id</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Name</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness avg</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness sum</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness Evaluations</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Execution Counter</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Execution Time</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Max Pop. Size</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Max Gens.</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Max Inds.</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Min code length</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Max code length</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Evolved Max code length</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Max Steps</th>
+                                            
+                                            
+                                            
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Population Size</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Generations created</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Individuals created</th>
+                                            
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Best Fitness</th>                                            
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg Fitness</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg Program Steps</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg Memory Usage</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg Inputbuffer usage</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg Execution time</th>
+                                            
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for object in problem.referencefunctions.all %}
+                                        {% for object in problem.populations.all %}
                                             <tr>
-                                                    <td>{{ object.id }}</td>
-                                                    <td>{{ object.name }}</td>
-                                                    <td>{{ object.fitness }}</td>
-                                                    <td>{{ object.fitness_sum }}</td>
-                                                    <td>{{ object.fitness_evalcount }}</td>
-                                                    <td>{{ object.execution_counter }}</td>
-                                                    <td>{{ object.execution_time }}</td>
+                                                <td><a href="/population/{{ object.id }}">{{ object.id }}</a></td>
+                                            
+                                                <td>{{ object.max_populationsize }}</td>
+                                                <td>{{ object.max_generations }}</td>
+                                                <td>{{ object.max_individuals }}</td>
+                                                <td>{{ object.min_code_length }}</td>
+                                                <td>{{ object.max_code_length }}</td>
+                                                <td>{{ object.evolved_max_code_length }}</td>
+                                                <td>{{ object.max_steps }}</td>
+                                                
+                                                <td>{{ object.individuals.count }}</td>
+                                                <td>{{ object.generation_count }}</td>
+                                                <td>{{ object.individual_count }}</td>
+                                                
+                                                <td>{{ object.best_fitness }}</td>
+                                                <td>{{ object.average_fitness }}</td>
+                                                <td>{{ object.average_program_steps }}</td>
+                                                <td>{{ object.average_memory_usage }}</td>
+                                                <td>{{ object.average_inputbuffer_usage }}</td>
+                                                <td>{{ object.average_execution_time }}</td>
+                                                
                                                 <td>
-                                                    <a href="/referencefunction/{{ object.id }}/reset">Reset</a>
+                                                    <a href="/population/{{ object.id }}/delete">Delete</a>
                                                 </td>
                                             </tr>
                                         {% endfor %}
@@ -233,34 +358,9 @@
                     </div>
                 </div>
                 <!-- /.box-body -->
-            </div>        
-          
-          
-          
-          
-          
-          
-          
-          
-        </div>       
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-    </div>
+            </div>           
+        </div> <!-- /col-md-12 -->
+    </div> <!-- /row -->
+    
+  
 {% endblock %}

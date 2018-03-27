@@ -1,6 +1,5 @@
 from django.db import models
 import random
-from . import brainfuck
 from django.db.models import F, Q
 import time
 import requests
@@ -9,6 +8,26 @@ import p2pClient
 from django.db import connection
 import datetime
 from django.utils import timezone
+import traceback
+from .brainfuckC import BrainfuckC
+
+brainfuckCinstance = BrainfuckC.BrainfuckC()
+
+GENES = [
+    '>', # inkrementiert den Zeiger
+    '<', # dekrementiert den Zeiger
+    '+', # inkrementiert den aktuellen Zellenwert
+    '-', # dekrementiert den aktuellen Zellenwert
+    '[', # Springt nach vorne, hinter den passenden ]-Befehl, wenn der aktuelle Zellenwert 0 ist	
+    ']', # Springt nach vorne, hinter den passenden ]-Befehl, wenn der aktuelle Zellenwert 0 ist
+    '.', # Gibt den aktuellen Zellenwert als ASCII-Zeichen auf der Standardausgabe aus
+    ',', # Liest ein Zeichen von der Standardeingabe und speichert dessen ASCII-Wert in der aktuellen Zelle
+    'N', # NoOp
+    'A', # NoOp
+    'B', # NoOp
+    'C', # NoOp
+    'D', # NoOp
+]
 
 
 def lock(modelobject):
@@ -104,6 +123,7 @@ class Problem(models.Model):
         population.max_individuals = self.default_max_individuals
         population.max_generations = self.default_max_generations
         population.max_code_length = self.default_max_code_length
+        population.evolved_max_code_length = self.default_max_code_length
         population.min_code_length = self.default_min_code_length
         population.max_steps = self.default_max_steps
         population.min_fitness_evaluation_per_individual = self.default_min_fitness_evaluation_per_individual
@@ -157,24 +177,40 @@ class Population(models.Model):
     id       = models.AutoField(primary_key=True)
     created  = models.DateTimeField('created',auto_now_add=True)
     updated  = models.DateTimeField('updated',auto_now=True)  
+    
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name='populations')
+    
     max_populationsize =  models.IntegerField(default = 100)  # max number of living individuals
     max_individuals  = models.IntegerField(default = -1)  # total number of individuals to generate during evolution, or -1 for unlimited, evolution will stop and return null for new unrated individuals at this point
     max_generations =  models.IntegerField(default = -1) # total number of evolutionary steps during evolution, or -1 for unlimited
-    generation_count =  models.IntegerField(default = 0)
-    individual_count =  models.IntegerField(default = 0)
+
+    min_code_length =  models.IntegerField(default = 20) #unchangeable limits
     max_code_length =  models.IntegerField(default = 20)
-    min_code_length =  models.IntegerField(default = 20)
-    max_steps  =  models.IntegerField(default = 20)
+    max_steps  =  models.IntegerField(default = 20) # TODO
     min_fitness_evaluation_per_individual  =  models.IntegerField(default = 1)
     
-    # set right before ga_step in mutate_and_crossover, after all inds are evaluated
+    # evolable limits
+    evolved_max_code_length =  models.IntegerField(default = 20)
+    
+    
+    # stats
+    generation_count =  models.IntegerField(default = 0)
+    individual_count =  models.IntegerField(default = 0)
+    
+    # set right before ga_step in mutate_and_crossover, after all inds are evaluated, via self.updateStats()
     best_fitness =  models.FloatField(default = None,blank=True,null=True)
     best_code    = models.CharField( max_length=200000,default="")
     average_fitness = models.FloatField(default = None,blank=True,null=True)
-    
+    average_program_steps = models.FloatField(default = 0)
+    average_memory_usage = models.FloatField(default = 0)
+    average_inputbuffer_usage = models.FloatField(default = 0)
+    average_execution_time = models.FloatField(default = 0)
+        
     # -> individuals
-       
+     
+    class Meta:
+        ordering = ["-created"]
+         
     def lock(self):
         try:
             lock = Lock.objects.get(population_id = self.id)
@@ -215,11 +251,7 @@ class Population(models.Model):
         self.individual_cache = None#
         self.garunning = False
         super(type(self), self).__init__(*args,**kwargs)
-
-    
-    class Meta:
-        ordering = ["-created"]
-        
+ 
     def initializeIndividuals(self):
         diff =  self.max_populationsize - self.individuals.count()
         while diff < 0: 
@@ -270,18 +302,26 @@ class Population(models.Model):
         while diff > 0:
             individual = Individual()
             individual.population = self
+            individual.setCode("".join([random.choice(GENES) for _ in range(0,self.min_code_length)]))
             individual.save()
             self.individual_count += 1
             diff -= 1
     
-    def getIndividuals(self):
+    def getIndividuals(self, sorted = False):
         #print("getIndividuals")
         if self.individual_cache == None or self.problem.sync_to_database == True:
             self.individual_cache = [i for i in self.individuals.all()]
         try:
-            return [i for i in self.individual_cache]
+            inds =  [i for i in self.individual_cache]
+            if sorted == True:
+                inds.sort(key=lambda x:x.code_length,reverse = False)
+                inds.sort(key=lambda x:x.average_inputbuffer_usage,reverse = True)
+                inds.sort(key=lambda x:x.fitness,reverse = True)
+            return inds
         except Exception as e:
             return None
+            
+            
         return None         
         
     def getUnratedIndividual(self):
@@ -298,25 +338,41 @@ class Population(models.Model):
             return [i for i in self.individual_cache if i.fitness != None][0]
         except:
             return None
-   
-    def getFitnessStats(self):
-        individuals = self.individuals.filter(~Q(fitness = None))
-        fitsum = 0
-        fitavg = 0
-        fitmax = 0
-        exetimeavg = 0
-        if individuals.count()>0:
-            fitsum = sum([i.fitness for i in individuals])
-            fitmax = max([i.fitness for i in individuals])
-            exetimesum = sum([i.execution_time for i in individuals])
-            fitavg = fitsum / len(individuals)
-            exetimeavg = exetimesum / len(individuals)
-        return {
-            "sum" : fitsum,
-            "avg" : fitavg,
-            "max" : fitmax,
-            "execution_time" : exetimeavg
-        }
+            
+    def updateStats(self):
+        individuals = self.getIndividuals(sorted=True)
+        self.best_fitness = individuals[0].fitness
+        self.best_code = individuals[0].code
+        
+        sum_average_fitness = 0
+        sum_average_program_steps = 0
+        sum_average_memory_usage = 0
+        sum_average_inputbuffer_usage = 0
+        sum_average_execution_time = 0
+        
+        l = len(individuals)
+        
+        if l > 0:   
+            for i in individuals:
+                sum_average_fitness += i.fitness
+                sum_average_program_steps += i.average_program_steps 
+                sum_average_memory_usage += i.average_memory_usage 
+                sum_average_inputbuffer_usage += i.average_inputbuffer_usage 
+                sum_average_execution_time += i.average_execution_time 
+            
+            self.average_fitness = sum_average_fitness / l
+            self.average_program_steps = sum_average_program_steps / l
+            self.average_memory_usage = sum_average_memory_usage / l
+            self.average_inputbuffer_usage = sum_average_inputbuffer_usage / l
+            self.average_execution_time = sum_average_execution_time / l
+        else:
+            self.average_fitness = 0
+            self.average_program_steps = 0
+            self.average_memory_usage = 0
+            self.average_inputbuffer_usage = 0
+            self.average_execution_time = 0
+        if self.problem.sync_to_database == True:
+            self.save()
      
     def save(self):
         #print("Save on Population for problem %s" % self.problem)
@@ -339,14 +395,26 @@ class Individual(models.Model):
     code     = models.CharField( max_length=200000,default=".")
     code_length =  models.FloatField(default = 10)
 
+    execution_counter = models.FloatField(default = 0) # nr of executions of this code version
     
     fitness =  models.FloatField(default = None,blank=True,null=True)
     fitness_sum =  models.FloatField(default = 0)
     fitness_evalcount =  models.FloatField(default = 0)
-    step_counter = models.FloatField(default = 0) # nr of executions of this code version
-    execution_counter = models.FloatField(default = 0) # nr of executions of this code version
-    execution_time = models.FloatField(default = 0) 
-       
+    
+    program_steps = models.FloatField(default = 0) # nr of executions of this code version
+    memory_usage = models.FloatField(default = 0) # nr of executions of this code version
+    inputbuffer_usage = models.FloatField(default = 0) # 0 to 1 percent of input bytes used
+    execution_time = models.FloatField(default = 0) # total execution time
+    output_size = models.FloatField(default = 0) # total execution time
+    input_size = models.FloatField(default = 0) # total execution time
+    
+    average_program_steps = models.FloatField(default = 0) 
+    average_memory_usage = models.FloatField(default = 0) 
+    average_inputbuffer_usage = models.FloatField(default = 0) 
+    average_execution_time = models.FloatField(default = 0) 
+    average_output_size = models.FloatField(default = 0) 
+    average_input_size = models.FloatField(default = 0) 
+    
     parent_fitness =  models.FloatField(default = None,blank=True,null=True) # in case of crossover, set this to max parent fitness, used to track crossover quality
     
     def __init__(self,*args,**kwargs):
@@ -355,7 +423,7 @@ class Individual(models.Model):
 
     
     class Meta:
-        ordering = ["-fitness","code_length"]
+        ordering = ["-fitness", "-average_inputbuffer_usage","code_length",]
         
     def addFitness(self, value):
         self.wasChanged = True
@@ -366,13 +434,46 @@ class Individual(models.Model):
             self.save()
       
     def execute(self, input):
-        start = time.time()    
-        x = brainfuck.evaluate(self.code, input_buffer=input, max_steps=self.population.max_steps)
+        #print("execute ind")
+        brainfuckCinstance.load(code = self.code, max_steps = self.population.max_steps, max_memory = 100000, clear_memory = True, output_memory = False, preload_memory = "")
+        result = brainfuckCinstance.run(input, clear_memory = True)
+        #print(input)
+        #print(result.output)
+        
+        #ExecutionResult = namedtuple('ExecutionResult',[
+        #    "program_steps", 
+        #    "memory_usage",
+        #    "inputbuffer_usage",
+        #    "output_size",
+        #    "output",
+        #    "memory_size",
+        #    "memory",
+        #    "execution_time",
+        #])
+        
+        inputlength = len(input)
         self.execution_counter += 1
-        self.step_counter += x.steps 
-        self.execution_time += (time.time() - start)
+        
+        self.program_steps += result.program_steps
+        self.memory_usage += result.memory_usage
+        if inputlength == 0:
+            self.inputbuffer_usage = 1
+        else:
+            self.inputbuffer_usage += ((1.0 / inputlength ) * result.inputbuffer_usage)
+        self.execution_time += result.execution_time
+        self.input_size += inputlength
+        self.output_size += result.output_size
+        #print(self.input_size, self.execution_counter, (self.input_size  / self.execution_counter))
+        
+        self.average_program_steps = self.program_steps / self.execution_counter
+        self.average_memory_usage =  self.memory_usage / self.execution_counter
+        self.average_inputbuffer_usage = self.inputbuffer_usage / self.execution_counter
+        self.average_execution_time =  self.execution_time / self.execution_counter
+        self.average_input_size =  self.input_size / self.execution_counter
+        self.average_output_size =  self.output_size / self.execution_counter
+        
         self.wasChanged = True
-        return x
+        return result
         
     def setCode(self, newcode): 
         self.wasChanged = True    
@@ -390,8 +491,23 @@ class Individual(models.Model):
         self.fitness_evalcount = 0
         self.fitness = None
         self.execution_counter = 0
-        self.step_counter = 0
+        #print("reset")
+        #for line in traceback.format_stack():
+        #    print(line.strip())
+        
+        self.program_steps = 0
+        self.memory_usage = 0
+        self.inputbuffer_usage = 0
         self.execution_time = 0
+        self.input_size = 0
+        self.output_size = 0
+        
+        self.average_program_steps = 0
+        self.average_memory_usage = 0
+        self.average_inputbuffer_usage = 0
+        self.average_execution_time = 0
+        self.average_input_size = 0
+        self.average_output_size = 0
         if self.population.problem.sync_to_database == True:
             self.save()        
         
@@ -412,28 +528,75 @@ class ReferenceFunction(models.Model):
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name='referencefunctions')
 
     name     = models.CharField( max_length=200,default="", unique=True)
-    step_counter = models.FloatField(default = 0) # nr of executions of this code version
+    program_steps = models.FloatField(default = 0) # nr of executions of this code version
 
     fitness =  models.FloatField(default = None,blank=True,null=True)
     fitness_sum =  models.FloatField(default = 0)
     fitness_evalcount =  models.FloatField(default = 0)
     execution_counter = models.FloatField(default = 0)
     execution_time = models.FloatField(default = 0) # total execution time
+    
+    output_size = models.FloatField(default = 0) # total execution time
+    input_size = models.FloatField(default = 0) # total execution time
+
+    average_output_size = models.FloatField(default = 0) 
+    average_input_size = models.FloatField(default = 0) 
+    average_execution_time = models.FloatField(default = 0) 
 
     function = None # function supplyed externally in problem init
     
     class Meta:
         ordering = ["fitness"]
-        
+    
+    def __init__(self,*args,**kwargs):
+        self.wasChanged = False
+        super(type(self), self).__init__(*args,**kwargs)
+
+    
     def addFitness(self,value):
+        self.wasChanged = True  
         self.fitness_sum += value
         self.fitness_evalcount += 1
         self.fitness = self.fitness_sum / self.fitness_evalcount
 
+    def reset(self):
+        self.wasChanged = True    
+        self.fitness_sum = 0
+        self.fitness_evalcount = 0
+        self.fitness = None
+        self.execution_counter = 0
+        #print("reset1")
+        #for line in traceback.format_stack():
+        #    print(line.strip())
+
+        self.program_steps = 0
+        self.execution_time = 0
+        self.average_execution_time = 0
+        self.average_input_size = 0
+        self.average_output_size = 0
+        #if self.problem.sync_to_database == True:
+        #    self.save()        
+        
+    def save(self):
+        if self.wasChanged == True or self.id == None:
+            self.wasChanged = False
+            super(type(self), self).save()
+        
     def execute(self,input):   
-        self.execution_counter += 1    
+        #print("execute ref")  
+        self.wasChanged = True  
+        self.input_size += len(input)
+        
         start = time.time()
         r = self.function(input) 
-        self.execution_time += (time.time() - start)  
+        self.execution_time += ((time.time() - start)  * 1000000.0)
+        
+        self.execution_counter += 1 
+              
+        self.output_size += len(r)
+        self.average_execution_time = (self.execution_time / self.execution_counter) 
+        self.average_input_size =  self.input_size / self.execution_counter
+        self.average_output_size =  self.output_size / self.execution_counter
+                
         return r
         

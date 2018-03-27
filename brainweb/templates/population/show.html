@@ -11,15 +11,106 @@
     </section>
 {% endblock %}
 
+   
+    # set right before ga_step in mutate_and_crossover, after all inds are evaluated
+    best_fitness =  models.FloatField(default = None,blank=True,null=True)
+    best_code    = models.CharField( max_length=200000,default="")
 
 {% block content %}
 
     <div class="row">
-    <div class="col-md-12">
-            
+        <div class="col-md-6">
+            <div class="box">
+                <div class="box-header with-border">
+                    <h3 class="box-title">Population Status</h3>
+                </div>
+                <!-- /.box-header -->
+                <div class="box-body">
+                    <div class="col-md-9">
+                        <dl class="dl-horizontal">
+                            <dt>Created</dt>
+                            <dd>{{population.created|date:"d M. H:i" }}</dd>
+                            <dt>Updated</dt>
+                            <dd>{{population.created|date:"d M. H:i" }}</dd>
+                            <br>
+                            
+                            <dt>Generations</dt>
+                            <dd>{{population.generation_count }}</dd>
+                            
+                            <dt>Individuals created</dt>
+                            <dd>{{population.individual_count }}</dd>
+                            <br>
+                            
+                            <dt>Avg. Fitness</dt>
+                            <dd>{{population.average_fitness }}</dd>
+                            <dt>Avg. Program steps</dt>
+                            <dd>{{population.average_program_steps }}</dd>
+                            <dt>Avg. Memory usage</dt>
+                            <dd>{{population.average_memory_usage }}</dd>
+                            <dt>Avg. Inputbuffer usage</dt>
+                            <dd>{{population.average_inputbuffer_usage }}</dd>
+                            <dt>Avg. Execution time</dt>
+                            <dd>{{population.average_execution_time }} uS</dd>
+                            <br>
+                            
+                            <dt>Best Fitness</dt>
+                            <dd>{{population.best_fitness }}</dd>                    
+                            <dt>Best Code</dt>
+                            <dd>{{population.best_code }}</dd>
+                                                     
+                            
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="box">
+                <div class="box-header with-border">
+                    <h3 class="box-title">Population Limits</h3>
+                </div>
+                <!-- /.box-header -->
+                <div class="box-body">
+                    <div class="col-md-9">
+                        <dl class="dl-horizontal">
+                            <dt>Max Population size</dt>
+                            <dd>{{population.max_populationsize}}</dd>
+                            
+                            <dt>Max individuals</dt>
+                            <dd>{{population.max_individuals}}</dd>
+                            
+                            <dt>Max generations</dt>
+                            <dd>{{population.max_generations }}</dd>
+                            <br>
+                            <dt>Min code length</dt>
+                            <dd>{{population.min_code_length }}</dd>
+
+                            <dt>Max code length</dt>
+                            <dd>{{population.max_code_length }}</dd>        
+                            <dt>Evolved max code length</dt>
+                            <dd>{{population.evolved_max_code_length }}</dd>        
+                            
+                            <br>
+                            <dt>Max steps</dt>
+                            <dd>{{population.max_steps }}</dd>
+                            <br>
+                            <dt>Min fit. eval. per ind.</dt>
+                            <dd>{{population.min_fitness_evaluation_per_individual }}</dd>
+                            
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>        
+    </div>
+
+
+
+    <div class="row">
+        <div class="col-md-12">
             <div class="box">
                 <div class="box-header">
-                    <h3 class="box-title">Top 10 Individuals</h3>
+                    <h3 class="box-title">Individuals</h3>
                 </div>
                 <div class="box-body">
                     <div id="example2_wrapper" class="dataTables_wrapper form-inline dt-bootstrap">
@@ -34,30 +125,44 @@
                                         <tr role="row">
                                         
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Id</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Population</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Exec Counter</th>
+
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness Evals</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness</th>
+                                            
+                                            
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Steps</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Eval Counter</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Eval Time</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Max Code length</th>
+                                            
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Input Size</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Output Size</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Input Usage</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Mem Usage</th>
+                                            
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Time uS</th>
+                                            
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Code length</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Code</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody>                                    
                                         {% for object in population.individuals.all %}
                                             <tr>
                                                     <td><a href="/individual/{{ object.id }}">{{ object.id }}</a></td>
-                                                    <td>{{ object.population }}</td>
+                                                    <td>{{ object.execution_counter  |floatformat:0 }}</td>
+
+                                                    <td>{{ object.fitness_evalcount |floatformat:0  }}</td>
                                                     <td>{{ object.fitness }}</td>
-                                                    <td>{{ object.fitness_evalcount }}</td>
-                                                    <td>{{ object.avg_steps }}</td>                                                    
-                                                    <td>{{ object.execution_counter }}</td>
-                                                    <td>{{ object.execution_time }}</td>
-                                                    <td>{{ object.population.max_code_length }}</td>                                                    
-                                                    <td>{{ object.code_length}} </td>
+                                                    
+                                                    <td>{{ object.average_program_steps |floatformat:2 }}</td>                                                    
+                                                    
+                                                    <td>{{ object.average_input_size  |floatformat:2 }}</td>
+                                                    <td>{{ object.average_output_size  |floatformat:2 }}</td>
+                                                    <td>{{ object.average_inputbuffer_usage |floatformat:2 }}</td>
+                                                    <td>{{ object.average_memory_usage |floatformat:2 }}</td>
+                                                    
+                                                    <td>{{ object.average_execution_time |floatformat:2 }}</td>
+                                                    
+                                                    <td>{{ object.code_length |floatformat:0 }} </td>
                                                     <td>{{ object.code}}</td>
                                                 <td>
                                                 </td>
@@ -95,7 +200,7 @@
                     var fitnessdata = []
                     {% for object in problem.populations.all %} 
                         labels.push("{{ object.id}}");
-                        fitnessdata.push({{ object.getFitnessStats.avg}});
+                        fitnessdata.push({{ object.average_fitness}});
                     {% endfor %}
                     
                     var chart = new Chart(ctx, {
@@ -128,30 +233,8 @@
         <!-- /.box-body -->
       </div>
       <!-- /.box -->
-          
-     
-          
-          
-          
-          
-          
-          
-
-
-
-
-
-
-              
-        </div>
-
-
-
-
-
-
-
-
-        
+             
     </div>
+        
+ </div>
 {% endblock %}

@@ -1,13 +1,13 @@
 import os, sys
+sys.dont_write_bytecode = True
+
 import random
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "brainweb.settings")
 import django
 
 django.setup()
-from brainweb import brainfuck
 from django.db.models import F
 from brainweb import models
-
 from brainweb.models import Problem
 from brainweb.models import Population
 from brainweb.models import Individual
@@ -24,38 +24,30 @@ import cProfile
 
 def train(taskname):
     print("Running Task '%s'" % taskname)
-    task = google_testcases.make_task(
-        taskname, override_kwargs = None, 
-        max_code_length = 50, 
-        require_correct_syntax = False,
-        do_code_simplification = False, 
-        correct_bonus = 0.0, 
-        code_length_bonus = 0.0
-    )
-                  
-    def fitnessF(individual):
-        return sum(task._score_individual(individual).episode_rewards)
     
-    problem_regression = Regression("google_testcases-%s" % taskname, max_generations = -1, max_individuals = 100000,max_populationsize = 100, max_code_length=20,min_code_length=20,max_steps = 500,usePriorKnowledge=False)
+    if taskname not in google_testcases.task_mapping:
+        print("Task %s not found" % taskname)
+        return 
+        
+    task_cls, kwargs = google_testcases.task_mapping[taskname]
+    task = task_cls(**kwargs)    
+
+    def fitnessF(individual):
+        io_seqs = task.make_io_set()
+        score = ga.score_individual(individual, io_seqs)
+        return score
+        
+    problem_regression = Regression("google_testcases-%s" % taskname, max_generations = -1, max_individuals = 100000,max_populationsize = 100, max_code_length=100,min_code_length=100,max_steps = 5000,usePriorKnowledge=False)
     #problem_regression.problem.sync_to_database = True
-    startfitness = problem_regression.selected_population.getFitnessStats()
     problem_regression.regress(fitnessF)
     problem_regression.save()
-    endfitness = problem_regression.selected_population.getFitnessStats()
+    avg_endfitness = problem_regression.selected_population.average_fitness
+    max_endfitness = problem_regression.selected_population.best_fitness
     
+   
     print("%s Individuals created" % problem_regression.selected_population.individual_count)
-    print("max fit for population: %s" % endfitness["max"])
-    if problem_regression.selected_population.individual_count > 0:
-        fpi = endfitness["max"] / float(problem_regression.selected_population.individual_count)
-    else:
-        fpi = -1
-    maxDiffFitness = endfitness["max"] - startfitness["max"]
-    avgDiffFitness = endfitness["avg"] - startfitness["avg"]
-    print("startfitness: %s" % startfitness)
-    print("endfitness: %s" % endfitness)
-    print("maxDiffFitness: %s" % maxDiffFitness)
-    print("avgDiffFitness: %s" % avgDiffFitness)
-    print("fitness per individual %s" % fpi)
+    print("max fit for population: %s" % max_endfitness)
+    print("avg_endfitness: %s" % avg_endfitness)
     
     
 if __name__ == "__main__":

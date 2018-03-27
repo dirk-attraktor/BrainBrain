@@ -11,53 +11,13 @@ from six.moves import xrange#
 
 import misc 
 import reward as r 
-from brainweb import brainfuck
 
 
 NUMBER_OF_TESTCASES = 16 # Number of test cases.
 MAX_EXECUTION_STEPS = 5000
 
-
-
-
-
-def make_task(task_name, override_kwargs=None, max_code_length=100,
-              require_correct_syntax=False,
-              do_code_simplification=False,
-              correct_bonus=2.0, code_length_bonus=1.0):
-  """Make tasks with setting from paper."""
-  print('Making paper-config task.')
-
-  if task_name not in task_mapping:
-    # Test tasks.
-    if task_name == 'test-hill-climb':
-      return test_tasks.BasicTaskManager(test_tasks.HillClimbingTask())
-    raise ValueError('Unknown task type "%s"' % task_name)
-  task_cls, kwargs = task_mapping[task_name]
-
-  if override_kwargs:
-    if not isinstance(override_kwargs, dict):
-      raise ValueError(
-          'override_kwargs must be a dict, got: %s', override_kwargs)
-    kwargs.update(override_kwargs)
-
-  task = task_cls(**kwargs)
-
-  reward_fn = r.absolute_distance_reward
-  # reward_fn = r.absolute_mod_distance_reward
-  # reward_fn = r.absolute_log_distance_reward
-  print('Using reward function: %s'% reward_fn.__name__)
-
-  # We want reward with and without code simplification to be scaled the same
-  # way. Without code simplification, give the maximum code length bonus
-  # every time.
-  min_code_length = 0.0 if do_code_simplification else max_code_length
-
-  return MultiIOTaskManager(
-      task=task, correct_bonus=correct_bonus,
-      code_length_bonus=code_length_bonus,
-      max_code_length=max_code_length, min_code_length=min_code_length,
-      reward_fn=reward_fn, require_correct_syntax=require_correct_syntax)
+from brainweb.brainfuckC import BrainfuckC
+brainfuckCinstance = BrainfuckC.BrainfuckC()
 
 
 def concat(lists):
@@ -68,7 +28,6 @@ def concat(lists):
     l += k
   return l
 
-
 def concat_join(lists, sep):
   if not lists:
     return []
@@ -77,183 +36,9 @@ def concat_join(lists, sep):
     l += [sep] + k
   return l
 
-
 def clipped_linear(x, x0, y0, slope, y_range):
   min_y, max_y = y_range
   return min(max(slope * (x - x0) + y0, min_y), max_y)
-
-
-class MultiIOTaskManager(object):
-  """Supports tasks which test the code with multiple I/O examples."""
-
-  def __init__(self, task, max_code_length=32, min_code_length=0,
-               max_execution_steps=MAX_EXECUTION_STEPS, correct_bonus=1.0,
-               code_length_bonus=1.0, failure_reward=-2.0, reward_fn=None,
-               require_correct_syntax=False):
-    assert isinstance(task, BaseTask)
-    self.task = task
-    self.max_code_length = max_code_length
-    self.min_code_length = min_code_length
-    self.max_execution_steps = max_execution_steps
-    self.require_correct_syntax = require_correct_syntax
-    self.correct_bonus = correct_bonus
-    self.code_length_bonus = code_length_bonus
-    self.failure_reward = failure_reward
-    self.time_penalty = (
-        1.0 / (max_code_length - min_code_length)
-        if max_code_length > min_code_length else 0.0)
-    if reward_fn is None:
-      self.reward_fn = r.absolute_distance_reward
-    else:
-      self.reward_fn = reward_fn
-    self.input_type = (
-        task.input_type if hasattr(task, 'input_type') else misc.IOType.integer)
-    self.output_type = (
-        task.output_type if hasattr(task, 'output_type')
-        else misc.IOType.integer)
-    self._compute_best_reward()
-
-  def _compute_best_reward(self):
-    io_seqs = self.task.make_io_set()
-    reward = 0.0
-    for _, output_seq in io_seqs:
-      r = self.reward_fn(output_seq, output_seq, self.task.base)
-      #print(r)
-      reward += r
-      reward += self.correct_bonus
-      reward += self.code_length_bonus  # Bonus for shortest code.
-      #print(reward)
-    self.best_reward = reward
-    self.good_reward = 0.75 * reward
-    print('Known best reward: %s'% self.best_reward)
-
-  def _score_batch(self, code_strings):
-    return [self._score_code(code) for code in code_strings]
-
-  def _score_code(self, code):
-    """Run test cases on code and compute reward.
-
-    Args:
-      code: A single BF code string.
-
-    Returns:
-      misc.RewardInfo namedtuple instance containing reward and code execution
-          information, including inputs, expected outputs, code outputs, input
-          and output types, and reason for the reward obtained.
-    """
-    # Get list of 2-tuples, each containing an input sequence and an output
-    # sequence.
-    io_seqs = self.task.make_io_set()
-    terminal_reward = 0.0
-    results = []
-    reason = 'correct'
-    for input_seq, output_seq in io_seqs:
-      eval_result = brainfuck.evaluate(
-          code, input_buffer=input_seq, timeout=0.1,
-          max_steps=self.max_execution_steps,
-          base=self.task.base,
-          require_correct_syntax=self.require_correct_syntax)
-      result, success = eval_result.output, eval_result.success
-      if not success:
-        # Code execution timed out.
-        terminal_reward = self.failure_reward
-        results = []
-        reason = eval_result.failure_reason
-        break
-      else:
-        terminal_reward += self.reward_fn(result, output_seq, self.task.base)
-        if result == output_seq:
-          #print("correct")
-          terminal_reward += self.correct_bonus  # Bonus for correct answer.
-
-          # Only add additional reward for shorter code. Subtracting reward
-          # interferes with the main objective. Only optimize for length once
-          # any solution is found.
-          if self.min_code_length == self.max_code_length:
-            #print("code lenth bonus")
-            terminal_reward += self.code_length_bonus
-          else:
-            terminal_reward += self.code_length_bonus * clipped_linear(
-                x=len(code), x0=self.min_code_length, y0=1.0,
-                slope=-self.time_penalty, y_range=(0.0, 1.0))
-
-          # reason remains 'correct' if it is already
-        elif reason == 'correct':
-          reason = 'wrong'
-      results.append(result)
-    #if terminal_reward > 0:
-    #    print("tr: %s" % terminal_reward)
-    # Return list of rewards, one for each char in the code. All are 0 except
-    # for the terminal reward.
-    terminal_reward /= self.best_reward
-    return misc.RewardInfo(
-        episode_rewards=[0.0] * (len(code) - 1) + [terminal_reward],
-        input_case=misc.IOTuple(i for i, o in io_seqs),
-        correct_output=misc.IOTuple(o for i, o in io_seqs),
-        code_output=misc.IOTuple(results),
-        input_type=self.input_type,
-        output_type=self.output_type,
-        reason=reason)
-
-        
-
-  def _score_individual(self, individual):
-    """Run test cases on code and compute reward.
-
-    Args:
-      code: A single BF code string.
-
-    Returns:
-      misc.RewardInfo namedtuple instance containing reward and code execution
-          information, including inputs, expected outputs, code outputs, input
-          and output types, and reason for the reward obtained.
-    """
-    # Get list of 2-tuples, each containing an input sequence and an output
-    # sequence.
-    io_seqs = self.task.make_io_set()
-    terminal_reward = 0.0
-    results = []
-    reason = 'correct'
-    for input_seq, output_seq in io_seqs:
-      #eval_result = brainfuck.evaluate(
-      #    individual.code, input_buffer=input_seq, timeout=0.1,
-      #    max_steps=self.max_execution_steps,
-      #    base=self.task.base,
-      #    require_correct_syntax=self.require_correct_syntax)
-      eval_result = individual.execute(input_seq)
-      result, success = eval_result.output, eval_result.success
-      if not success:
-        # Code execution timed out.
-        terminal_reward = self.failure_reward
-        results = []
-        reason = eval_result.failure_reason
-        break
-      else:
-        terminal_reward += self.reward_fn(result, output_seq, self.task.base)
-        if result == output_seq:
-          #print("correct")
-          terminal_reward += self.correct_bonus  # Bonus for correct answer.
-        elif reason == 'correct':
-          reason = 'wrong'
-      results.append(result)
-    #if terminal_reward > 0:
-    #    print("tr: %s" % terminal_reward)
-    # Return list of rewards, one for each char in the code. All are 0 except
-    # for the terminal reward.
-    terminal_reward /= self.best_reward
-    return misc.RewardInfo(
-        episode_rewards=[0.0] * (len(individual.code) - 1) + [terminal_reward],
-        input_case=misc.IOTuple(i for i, o in io_seqs),
-        correct_output=misc.IOTuple(o for i, o in io_seqs),
-        code_output=misc.IOTuple(results),
-        input_type=self.input_type,
-        output_type=self.output_type,
-        reason=reason)
-        
-  def rl_batch(self, batch_size):
-    """Produces list of reward functions. One for each program in the batch."""
-    return [self._score_code] * batch_size
-
 
 def conditional_overwrite(current_value, new_value, allowed_overwrite_values):
   if current_value in allowed_overwrite_values:
@@ -673,14 +458,29 @@ class KnownCodeBaseTask(BaseTask):
 
   def _test_case_generator(self, code_solution):
     rand = random.Random()
+    brainfuckCinstance.start()
+    brainfuckCinstance.load(code = code_solution, max_steps = 10000, max_memory = 100000, clear_memory = True, output_memory = False, preload_memory = "")
     for _ in xrange(self.n):
+      #print("generate io")
       input_case = self.make_input_fn(rand)
-      result = brainfuck.evaluate(
-          code_solution, input_buffer=input_case, max_steps=self.max_steps,
-          base=self.base, require_correct_syntax=False)
-      if not result.success:
-        raise RuntimeError(
-            'Program must succeed. Failed on input: %s' % input_case)
+      result = brainfuckCinstance.run(input_case, clear_memory = True)
+        #ExecutionResult = namedtuple('ExecutionResult',[
+        #    "program_steps", 
+        #    "memory_usage",
+        #    "inputbuffer_usage",
+        #    "output_size",
+        #    "output",
+        #    "memory_size",
+        #    "memory",
+        #    "execution_time",
+        #])      
+      
+      #result = brainfuck.evaluate(
+      #    code_solution, input_buffer=input_case, max_steps=self.max_steps,
+      #    base=self.base, require_correct_syntax=False)
+      #if not result.success:
+      #  raise RuntimeError(
+      #      'Program must succeed. Failed on input: %s' % input_case)
       yield input_case, result.output
 
   def make_io_set(self):
