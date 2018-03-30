@@ -7,6 +7,7 @@ from brainweb.models import ReferenceFunction
 import numpy as np
 import reward
 import p2pClient
+import re
 
 GENES = [
     '>', # inkrementiert den Zeiger
@@ -20,9 +21,12 @@ GENES = [
     'N', # NoOp
     'A', # NoOp
     'B', # NoOp
-    'C', # NoOp
-    'D', # NoOp
 ]
+GENES_STRING = '\\'.join(GENES)
+#GENES_STRING_QUOTED = GENES_STRING.replace("[","\[").replace("]","\]")
+GENES_REGEX = "[^%s]+" % GENES_STRING
+#x=re.sub(GENES_REGEX,'',"addfs,.<<>.,")
+
    
 def create_first_individual():
     return "".join([random.choice(GENES) for _ in range(0,10)])
@@ -267,9 +271,9 @@ class Regression():
                 print("Fitness 1 reached! regress %s Solved!" % self.problem.name)
                 #print(brainfuck.evaluate(self.selected_individual.code,"hallo"))
                 break            
-            
-            
-            
+        self.selected_population.updateStats()
+        
+        
     def save(self):
         self.selected_population.save()
         for key in self.loaded_referenceFunctions:
@@ -320,8 +324,10 @@ def ga_step(population):
     changecnt = mutate_and_crossover(population)
     population.individual_count += changecnt   
     population.generation_count += 1
+    population.wasChanged = True
     if population.problem.sync_to_database == True:
         population.unlock()
+        population.save()
     population.garunning = False
     #print("ga step finished %s" % population)
     return True   
@@ -334,7 +340,7 @@ mutate_code_evolution = Evolution(
     max_individuals = -1,
     max_populationsize = 100,
     referenceFunctionRate=0.7,
-    max_code_length = 1000, 
+    max_code_length = 2000, 
     min_code_length = 50,
     max_steps = 1000,
     min_fitness_evaluation_per_individual = 1500,
@@ -410,7 +416,8 @@ def mutate_code(code_tokens):
     while tries > 0:
         tries -= 1
         result =  mutate_code_base(code_tokens)
-        result = ''.join([i if ord(i) < 128 else '' for i in result])
+        #result = ''.join([i if ord(i) < 128 else '' for i in result])
+        result = re.sub(GENES_REGEX,'',result)
         len_code_tokens = len(code_tokens)
         len_result = len(result)
         if (len_result <  (len_code_tokens/2)) or (len_result > (len_code_tokens*2)):
@@ -431,7 +438,7 @@ crossover_code_evolution = Evolution(
     max_individuals = -1,
     max_populationsize = 100,
     referenceFunctionRate=0.7,    
-    max_code_length = 1000, 
+    max_code_length = 2000, 
     min_code_length = 50,
     max_steps = 10000,
     min_fitness_evaluation_per_individual = 1500,
@@ -468,7 +475,8 @@ def crossover_code(parent1, parent2):
         tries -= 1 
         parent1_parent2 ="%s_%s" % (parent1, parent2 )
         result = crossover_code_base(parent1_parent2)
-        result = ''.join([i if ord(i) < 128 else '' for i in result])
+        #result = ''.join([i if ord(i) < 128 else '' for i in result])
+        result = re.sub(GENES_REGEX,'',result)
         len_min_parent = min([ len(parent1), len(parent2)])
         len_max_parent = max([ len(parent1), len(parent2)])
         len_result = len(result)
@@ -497,16 +505,20 @@ def adjust_max_codelength(population,individuals):
         if population.evolved_max_code_length < max_codelength *2:
             if population.max_steps * 2 > population.evolved_max_code_length:
                 population.evolved_max_code_length = int(population.evolved_max_code_length + 3)
+                population.wasChanged = True
     else:
         population.evolved_max_code_length = int(population.evolved_max_code_length - 3 )
+        population.wasChanged = True
         
     if population.evolved_max_code_length < population.min_code_length:
         print("evolution understepped min_code_length for pop %s" % population)
         population.evolved_max_code_length = population.min_code_length
+        population.wasChanged = True
         
     if population.evolved_max_code_length > population.max_code_length:
         print("evolution overstepped max_code_length for pop %s" % population)
         population.evolved_max_code_length = population.max_code_length
+        population.wasChanged = True
         
     if population.generation_count % 20 == 0:
         print("avg_codelength: %s" % avg_codelength)
@@ -530,9 +542,11 @@ def adjust_max_steps(population,individuals):
     #print("pop maxsteps %s " % population.max_steps)  
     if avg_steps * 4 > max_steps:
         if population.max_steps < max_steps * 2:
-            population.max_steps = int(population.max_steps + 50)
+            population.max_steps = int(population.max_steps + 100)
+            population.wasChanged = True
     else:
-        population.max_steps = int(population.max_steps - 50 )
+        population.max_steps = int(population.max_steps - 100 )
+        population.wasChanged = True
     if population.max_steps < 1000:
         population.max_steps = 1000
     if population.max_steps > 100000:

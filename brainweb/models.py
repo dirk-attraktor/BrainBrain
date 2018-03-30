@@ -54,7 +54,7 @@ class Peer(models.Model):
     supernode = models.BooleanField(default=False)
     failcount = models.IntegerField(default=0)
     
-    def getIndividuals(self,problem_name):
+    def xxgetIndividuals(self,problem_name):
         url = "http://%s:%s/p2p/getIndividuals/%s" % (self.host, self.port, problem_name)        
         data = []
         try:
@@ -112,7 +112,7 @@ class Problem(models.Model):
        
     def addPopulation(self):
         cnt = self.populations.count()
-        while cnt > 100:
+        while cnt > 200:
             self.populations.all()[cnt-1:cnt][0].delete()
             
             cnt = self.populations.count()
@@ -161,13 +161,11 @@ class Problem(models.Model):
                     tmpresult.append(individual)
             result.extend(tmpresult)        
         return result 
-       
-       
+   
     def save(self):  
         #print("save called in Problem")
         super(type(self), self).save()
-
-        
+       
     def __str__(self):
         return "Problem: %s" % self.name
     
@@ -210,7 +208,14 @@ class Population(models.Model):
      
     class Meta:
         ordering = ["-created"]
-         
+   
+    def __init__(self,*args,**kwargs):
+        self.wasChanged = False
+        self.individual_cache = None#
+        self.garunning = False
+        super(type(self), self).__init__(*args,**kwargs)
+ 
+   
     def lock(self):
         try:
             lock = Lock.objects.get(population_id = self.id)
@@ -247,11 +252,6 @@ class Population(models.Model):
             print("%s is not locked: %s" % (self,e))
             return False
             
-    def __init__(self,*args,**kwargs):
-        self.individual_cache = None#
-        self.garunning = False
-        super(type(self), self).__init__(*args,**kwargs)
- 
     def initializeIndividuals(self):
         diff =  self.max_populationsize - self.individuals.count()
         while diff < 0: 
@@ -306,23 +306,18 @@ class Population(models.Model):
             individual.save()
             self.individual_count += 1
             diff -= 1
-    
+        self.wasChanged = True 
+        
     def getIndividuals(self, sorted = False):
         #print("getIndividuals")
         if self.individual_cache == None or self.problem.sync_to_database == True:
             self.individual_cache = [i for i in self.individuals.all()]
-        try:
-            inds =  [i for i in self.individual_cache]
-            if sorted == True:
-                inds.sort(key=lambda x:x.code_length,reverse = False)
-                inds.sort(key=lambda x:x.average_inputbuffer_usage,reverse = True)
-                inds.sort(key=lambda x:x.fitness,reverse = True)
-            return inds
-        except Exception as e:
-            return None
-            
-            
-        return None         
+        inds =  [i for i in self.individual_cache]
+        if sorted == True:
+            inds.sort(key=lambda x:x.code_length,reverse = False)
+            inds.sort(key=lambda x:x.average_inputbuffer_usage,reverse = True)
+            inds.sort(key=lambda x:(x.fitness is None, x.fitness),reverse = True)
+        return inds
         
     def getUnratedIndividual(self):
         #print("getUnratedIndividual")
@@ -340,6 +335,7 @@ class Population(models.Model):
             return None
             
     def updateStats(self):
+        self.wasChanged = True
         individuals = self.getIndividuals(sorted=True)
         self.best_fitness = individuals[0].fitness
         self.best_code = individuals[0].code
@@ -353,14 +349,17 @@ class Population(models.Model):
         l = len(individuals)
         
         if l > 0:   
+            fitcnt = 0
             for i in individuals:
-                sum_average_fitness += i.fitness
+                if i.fitness != None:
+                    sum_average_fitness += i.fitness
+                    fitcnt += 1
                 sum_average_program_steps += i.average_program_steps 
                 sum_average_memory_usage += i.average_memory_usage 
                 sum_average_inputbuffer_usage += i.average_inputbuffer_usage 
                 sum_average_execution_time += i.average_execution_time 
             
-            self.average_fitness = sum_average_fitness / l
+            self.average_fitness = sum_average_fitness / fitcnt
             self.average_program_steps = sum_average_program_steps / l
             self.average_memory_usage = sum_average_memory_usage / l
             self.average_inputbuffer_usage = sum_average_inputbuffer_usage / l
@@ -379,8 +378,10 @@ class Population(models.Model):
         if self.individual_cache != None:
             for i in self.individual_cache:
                 i.save()
-        super(type(self), self).save()
-
+        if self.wasChanged == True or self.id == None:
+            super(type(self), self).save()
+        self.wasChanged = False
+        
     def __str__(self):
         return "Population: %s" % self.id
     

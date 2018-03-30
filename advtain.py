@@ -71,5 +71,5 @@ def advtain():
     # create solver propulation
     # regress genator with solver population for 50k steps
     
-for i in range(0,50): 
-    advtain()
+
+advtain()
