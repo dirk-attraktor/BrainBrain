@@ -23,9 +23,7 @@ GENES = [
     'B', # NoOp
 ]
 GENES_STRING = '\\'.join(GENES)
-#GENES_STRING_QUOTED = GENES_STRING.replace("[","\[").replace("]","\]")
 GENES_REGEX = "[^%s]+" % GENES_STRING
-#x=re.sub(GENES_REGEX,'',"addfs,.<<>.,")
 
    
 def create_first_individual():
@@ -259,7 +257,7 @@ class Regression():
             if self.selected_individual == None:
                  if ga_step(self.selected_population) == False:
                     print("regression finised, ga_step returned false")
-                    return 
+                    break 
                  #else:
                  #   print("GA step doned")
                  self.selected_individual = self.selected_population.getUnratedIndividual()
@@ -540,7 +538,7 @@ def adjust_max_steps(population,individuals):
     #print("max_steps: %s" % max_steps)
     #print("min_steps: %s" % min_steps)
     #print("pop maxsteps %s " % population.max_steps)  
-    if avg_steps * 4 > max_steps:
+    if avg_steps * 3 > max_steps:
         if population.max_steps < max_steps * 2:
             population.max_steps = int(population.max_steps + 100)
             population.wasChanged = True
@@ -550,7 +548,7 @@ def adjust_max_steps(population,individuals):
     if population.max_steps < 1000:
         population.max_steps = 1000
     if population.max_steps > 100000:
-        print("100k steps?")
+        print("100k steps for %s" % population)
         population.max_steps = 100000
         
     if population.generation_count % 20 == 0:
