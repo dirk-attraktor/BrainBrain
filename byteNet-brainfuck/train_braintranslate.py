@@ -34,7 +34,7 @@ def main():
                        help='Sample from top k predictions')
     parser.add_argument('--resume_from_bucket', type=int, default=0,
                        help='Resume From Bucket')
-    parser.add_argument('--model_name', type=int, default=0,
+    parser.add_argument('--model_name', type=str, default="",
                        help='Name of model used of output files')
     args = parser.parse_args()
     
@@ -162,9 +162,9 @@ def main():
 
                         for bi in range(probs.shape[0]):
 
-                            print col, dl.inidices_to_string(generated_target[bi], target_vocab)
-                            print col, dl.inidices_to_string(target[bi], target_vocab)
-                            print "***************"
+                            #print col, dl.inidices_to_string(generated_target[bi], target_vocab)
+                            #print col, dl.inidices_to_string(target[bi], target_vocab)
+                            #print "***************"
 
                             if col == bucket_size - 1:
                                 try:
@@ -173,7 +173,7 @@ def main():
                                     log_file.write("Actual Source: " + dl.inidices_to_string(source[bi], source_vocab) + '\n *******')
                                 except:
                                     pass
-                                print "***************"
+                                #print "***************"
                     log_file.close()
 
             save_path = saver.save(sess, "Data/Models/translation_model{}/model_epoch_{}_{}.ckpt".format(model_name, epoch, bucket_size))

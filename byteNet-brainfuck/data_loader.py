@@ -12,7 +12,6 @@ class Data_Loader:
             self.max_sentences = None
             if 'max_sentences' in options:
                 self.max_sentences = options['max_sentences']
-
             with open(source_file) as f:
                 self.source_lines = f.read().decode("utf-8").split('\n')
             with open(target_file) as f:
@@ -26,11 +25,35 @@ class Data_Loader:
             print "Target Sentences", len(self.target_lines)
 
             self.bucket_quant = options['bucket_quant']
-            self.source_vocab = self.build_vocab(self.source_lines)
-            self.target_vocab = self.build_vocab(self.target_lines)
+            #self.source_vocab = self.build_vocab(self.source_lines)
+            #self.target_vocab = self.build_vocab(self.target_lines)
 
+            
+            voc = {   
+                'eol' : 0,
+                'padding' : 1,
+                'init' : 2,
+                '>' : 3, # inkrementiert den Zeiger
+                '<' : 4, # dekrementiert den Zeiger
+                '+' : 5, # inkrementiert den aktuellen Zellenwert
+                '-' : 6, # dekrementiert den aktuellen Zellenwert
+                '[' : 7, # Springt nach vorne, hinter den passenden ]-Befehl, wenn der aktuelle Zellenwert 0 ist	
+                ']' : 8, # Springt nach vorne, hinter den passenden ]-Befehl, wenn der aktuelle Zellenwert 0 ist
+                '.' : 9, # Gibt den aktuellen Zellenwert als ASCII-Zeichen auf der Standardausgabe aus
+                ',' : 10, # Liest ein Zeichen von der Standardeingabe und speichert dessen ASCII-Wert in der aktuellen Zelle
+                'N' : 11, # NoOp
+                'A' : 12, # NoOp
+                'B' : 13, # NoOp
+                ' ' : 14, # NoOp
+            }
+            self.source_vocab = voc
+            self.target_vocab = voc
+            
+            
             print "SOURCE VOCAB SIZE", len(self.source_vocab)
+            print "SOURCE VOCAB SIZE", self.source_vocab
             print "TARGET VOCAB SIZE", len(self.target_vocab)
+            print "TARGET VOCAB SIZE", self.target_vocab
         
         elif options['model_type'] == 'generator':
             dir_name = options['dir_name']
@@ -115,7 +138,7 @@ class Data_Loader:
             
         return buckets
 
-    def build_vocab(self, sentences):
+    def x_build_vocab(self, sentences):
         vocab = {}
         ctr = 0
         for st in sentences:
