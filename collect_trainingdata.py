@@ -48,8 +48,8 @@ for population in populations:
                     if ed > 0 and ed <= 30:
                         if individuals[i1].fitness > individuals[i2].fitness:
                             outfile.write("%s\t%s\n" % (individuals[i2].code,individuals[i1].code))
-                        if individuals[i1].fitness < individuals[i2].fitness:
-                            outfile.write("%s\t%s\n" % (individuals[i1].code,individuals[i2].code))                            
+                        #if individuals[i1].fitness < individuals[i2].fitness: is sorted by fitness
+                        #    outfile.write("%s\t%s\n" % (individuals[i1].code,individuals[i2].code))                            
                         cnt += 1
                         if cnt % 100 == 0:
                             print(cnt, cnt1)

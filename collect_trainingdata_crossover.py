@@ -37,7 +37,7 @@ for max_crossover_inds in range(1, 8):
     cnt1 = 0
     #max_crossover_inds = 6
     percent_diff = 30
-    outfile = open("traindata_crossover_%s_inds_%s_percentdiff_%s" % (max_crossover_inds, percent_diff, postfix),"w")
+    outfile = open("traindata_crossover_%s_inds_%s_percentdiff_%s_fitnesslarger0" % (max_crossover_inds, percent_diff, postfix),"w")
     for population in populations:
         if population.individual_count > 5000:
             individuals = population.individuals.filter(~Q(fitness=None)).filter(~Q(fitness=0))
@@ -45,14 +45,16 @@ for max_crossover_inds in range(1, 8):
                 individuals = [i for i in individuals]
                 
                 for i1 in range(0,len(individuals)):
+                    if individuals[i1].fitness < 0:
+                        continue
                     crossover_inds_code = []
                     cnt1 += 1
                     l1 = len(individuals[i1].code)
-                    if l1 == 0 or l1 > 1000:
+                    if l1 < 20 or l1 > 1000:
                         continue
                     for i2 in range(i1+1,len(individuals)):
                         l2 = len(individuals[i2].code)
-                        if l2 == 0 or l2 > 1000:
+                        if l2 < 20 or l2 > 1000:
                             continue                    
                         
                         eds = [compare(individuals[i1].code,crossover_ind_code) for crossover_ind_code in crossover_inds_code] # compare to crossover_inds_code
