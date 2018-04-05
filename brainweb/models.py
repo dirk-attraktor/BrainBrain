@@ -10,6 +10,7 @@ import datetime
 from django.utils import timezone
 import traceback
 from .brainfuckC import BrainfuckC
+REFRESH_REFERENCE_FUNCTION_FROM_DB = True
 
 brainfuckCinstance = BrainfuckC.BrainfuckC()
 
@@ -123,7 +124,7 @@ class Problem(models.Model):
         population.max_individuals = self.default_max_individuals
         population.max_generations = self.default_max_generations
         population.max_code_length = self.default_max_code_length
-        population.evolved_max_code_length = self.default_max_code_length
+        population.evolved_max_code_length = self.default_min_code_length
         population.min_code_length = self.default_min_code_length
         population.max_steps = self.default_max_steps
         population.min_fitness_evaluation_per_individual = self.default_min_fitness_evaluation_per_individual
@@ -314,9 +315,9 @@ class Population(models.Model):
             self.individual_cache = [i for i in self.individuals.all()]
         inds =  [i for i in self.individual_cache]
         if sorted == True:
-            inds.sort(key=lambda x:x.code_length,reverse = False)
-            inds.sort(key=lambda x:x.average_inputbuffer_usage,reverse = True)
-            inds.sort(key=lambda x:(x.fitness is None, x.fitness),reverse = True)
+            inds.sort(key=lambda x:x.code_length, reverse = False)
+            inds.sort(key=lambda x:x.average_inputbuffer_usage, reverse = True)
+            inds.sort(key=lambda x:float("-inf") if x.fitness is None else x.fitness, reverse = True)
         return inds
         
     def getUnratedIndividual(self):
@@ -339,7 +340,7 @@ class Population(models.Model):
         individuals = self.getIndividuals(sorted=True)
         self.best_fitness = individuals[0].fitness
         self.best_code = individuals[0].code
-        
+            
         sum_average_fitness = 0
         sum_average_program_steps = 0
         sum_average_memory_usage = 0
@@ -547,7 +548,7 @@ class ReferenceFunction(models.Model):
     function = None # function supplyed externally in problem init
     
     class Meta:
-        ordering = ["fitness"]
+        ordering = ["-fitness"]
     
     def __init__(self,*args,**kwargs):
         self.wasChanged = False
@@ -581,7 +582,9 @@ class ReferenceFunction(models.Model):
     def save(self):
         if self.wasChanged == True or self.id == None:
             self.wasChanged = False
+            #if REFRESH_REFERENCE_FUNCTION_FROM_DB == True or self.id == None:
             super(type(self), self).save()
+            
         
     def execute(self,input):   
         #print("execute ref")  

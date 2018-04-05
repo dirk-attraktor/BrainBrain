@@ -37,7 +37,7 @@ def train(taskname):
         score = ga.score_individual(individual, io_seqs)
         return score
         
-    problem_regression = Regression("google_testcases-%s" % taskname, max_generations = -1, max_individuals = 100000,max_populationsize = 100, max_code_length=100,min_code_length=100,max_steps = 5000,usePriorKnowledge=False)
+    problem_regression = Regression("google_testcases-%s" % taskname, max_generations = -1, max_individuals = 100000,max_populationsize = 100, max_code_length=100,min_code_length=30,max_steps = 5000,usePriorKnowledge=False)
     #problem_regression.problem.sync_to_database = True
     problem_regression.regress(fitnessF)
     problem_regression.save()
