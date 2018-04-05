@@ -24,6 +24,13 @@ GENES = [
     'A', # NoOp
     'B', # NoOp
 ]
+'''
+l  # left shift 1
+r  # right shift 1
+0..9 add value to current memory cell
+
+'''
+
 GENES_STRING = '\\'.join(GENES)
 GENES_REGEX = "[^%s]+" % GENES_STRING
 
@@ -603,7 +610,7 @@ select_mutation_rate_evolution = Evolution(
     max_code_length = 1000, 
     min_code_length = 20,
     max_steps = 10000,
-    min_fitness_evaluation_per_individual = 1000,
+    min_fitness_evaluation_per_individual = 2000,
     usePriorKnowledge = True,
     useP2P = True, #warmup = True,
     sync_to_database = True,    
@@ -677,7 +684,7 @@ def mutate_and_crossover(population):
                 print("new is better")
                 mutate_code_evolution_reward += 5
                 crossover_code_evolution_reward += 5
-                if population.generation_count > 100:
+                if population.generation_count > 200:
                     select_mutation_rate_evolution_reward += 1
                 
     if last_average_fitness != None:
@@ -695,7 +702,7 @@ def mutate_and_crossover(population):
     crossover_code_evolution.reward(crossover_code_evolution_reward)
     crossover_code_evolution.save()
     
-    if population.generation_count > 100:
+    if population.generation_count > 200:
         if population.generation_count % 100 == 0: # mutation rate evaluated over multiple generations
             select_mutation_rate_evolution.reward(select_mutation_rate_evolution_reward, selectNewIndividual = True)   
         else:
