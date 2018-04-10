@@ -55,17 +55,6 @@ class Peer(models.Model):
     supernode = models.BooleanField(default=False)
     failcount = models.IntegerField(default=0)
     
-    def xxgetIndividuals(self,problem_name):
-        url = "http://%s:%s/p2p/getIndividuals/%s" % (self.host, self.port, problem_name)        
-        data = []
-        try:
-            r = requests.get(url,timeout = 2000)
-            print(r.text)            
-            data = json.loads(r.text)
-        except Exception as e:
-            print("failed to load data from peer: %s" % e)
-        return data
-        
     def __str__(self):
         return "Peer %s:%s supernode:%s" %(self.host,self.port,self.supernode) 
         
@@ -312,20 +301,57 @@ class Population(models.Model):
     def getIndividuals(self, sorted = False):
         #print("getIndividuals")
         if self.individual_cache == None or self.problem.sync_to_database == True:
-            self.individual_cache = [i for i in self.individuals.all()]
-        inds =  [i for i in self.individual_cache]
+            self.individual_cache = [i for i in self.individuals.all()]#
         if sorted == True:
-            inds.sort(key=lambda x:x.code_length, reverse = False)
-            inds.sort(key=lambda x:x.average_inputbuffer_usage, reverse = True)
-            inds.sort(key=lambda x:float("-inf") if x.fitness is None else x.fitness, reverse = True)
-        return inds
+            self.individual_cache.sort(key=lambda x:( float("-inf") if x.fitness is None else x.fitness, x.average_inputbuffer_usage,  -x.code_length, -x.average_execution_time  ), reverse = True)
+        return self.individual_cache
         
     def getUnratedIndividual(self):
         #print("getUnratedIndividual")
-        try:
-            return random.choice([i for i in self.getIndividuals() if i.fitness == None or i.fitness_evalcount < self.min_fitness_evaluation_per_individual ])
-        except:
-            return None 
+        if self.problem.sync_to_database == True:
+            unfit = self.individuals.filter(Q(fitness = None) | Q(fitness_evalcount__lt = self.min_fitness_evaluation_per_individual))
+            c = unfit.count()
+            if c > 0:
+                try:
+                    i = unfit[random.randint(0,c-1)]
+                    #print("quickr")
+                    return i
+                except:
+                    print("errror")
+        else: # local search
+            inds = self.getIndividuals()
+            len_inds = len(inds)
+            startposition = random.randint(0,len_inds-1)
+            position = startposition
+            while True:
+                ind = inds[position]
+                if ind.fitness == None or ind.fitness_evalcount < self.min_fitness_evaluation_per_individual:
+                    return ind           
+                position = (position + 1) % len_inds
+                if position == startposition:
+                    break
+        return None 
+            
+    def hasUnratedIndividual(self):
+        #print("hasUnratedIndividual")
+        if self.problem.sync_to_database == True:
+            unfit = self.individuals.filter(Q(fitness = None) | Q(fitness_evalcount__lt = self.min_fitness_evaluation_per_individual))
+            c = unfit.count()
+            if c > 0:
+                return True
+        else: # local search
+            inds = self.getIndividuals()
+            len_inds = len(inds)
+            startposition = random.randint(0,len_inds-1)
+            position = startposition
+            while True:
+                ind = inds[position]
+                if ind.fitness == None or ind.fitness_evalcount < self.min_fitness_evaluation_per_individual:
+                    return True
+                position = (position + 1) % len_inds
+                if position == startposition:
+                    break
+        return False             
             
     def getBestIndividual(self):
         if self.individual_cache == None or self.problem.sync_to_database == True:
@@ -381,7 +407,7 @@ class Population(models.Model):
                 i.save()
         if self.wasChanged == True or self.id == None:
             super(type(self), self).save()
-        self.wasChanged = False
+            self.wasChanged = False
         
     def __str__(self):
         return "Population: %s" % self.id
@@ -425,14 +451,15 @@ class Individual(models.Model):
 
     
     class Meta:
-        ordering = ["-fitness", "-average_inputbuffer_usage","code_length",]
+        ordering = ["-fitness", "-average_inputbuffer_usage","code_length","average_execution_time"]
         
-    def addFitness(self, value):
+    def addFitness(self, value, evaluations = 1):
         self.wasChanged = True
         self.fitness_sum += value
-        self.fitness_evalcount += 1
+        self.fitness_evalcount += evaluations
         self.fitness = self.fitness_sum / self.fitness_evalcount
         if self.population.problem.sync_to_database == True:
+            #print("Individual.addFitness")
             self.save()
       
     def execute(self, input):
@@ -517,8 +544,12 @@ class Individual(models.Model):
     def save(self):
         if self.wasChanged == True or self.id == None:
             self.wasChanged = False
+            #print("save")
+            #traceback.print_stack()
             super(type(self), self).save()
-            
+        #else:
+        #    print("Individual.save not")
+            #traceback.print_stack()
         
     def __str__(self):
         return "Problem: %s Population: %s Individual: %s Fitness: %s  '%s'" % (self.population.problem.name,self.population.id,self.id,self.fitness, self.code)
@@ -555,32 +586,31 @@ class ReferenceFunction(models.Model):
         super(type(self), self).__init__(*args,**kwargs)
 
     
-    def addFitness(self,value):
+    def addFitness(self, value, evaluations = 1):
         self.wasChanged = True  
         self.fitness_sum += value
-        self.fitness_evalcount += 1
+        self.fitness_evalcount += evaluations
         self.fitness = self.fitness_sum / self.fitness_evalcount
-
+        
     def reset(self):
+        print("ReferenceFunction.reset")
         self.wasChanged = True    
         self.fitness_sum = 0
         self.fitness_evalcount = 0
         self.fitness = None
         self.execution_counter = 0
-        #print("reset1")
-        #for line in traceback.format_stack():
-        #    print(line.strip())
-
+        
         self.program_steps = 0
         self.execution_time = 0
         self.average_execution_time = 0
         self.average_input_size = 0
         self.average_output_size = 0
-        #if self.problem.sync_to_database == True:
-        #    self.save()        
+        if self.problem.sync_to_database == True:
+            self.save()        
         
     def save(self):
         if self.wasChanged == True or self.id == None:
+            #print("reference function saved")
             self.wasChanged = False
             #if REFRESH_REFERENCE_FUNCTION_FROM_DB == True or self.id == None:
             super(type(self), self).save()
@@ -603,4 +633,7 @@ class ReferenceFunction(models.Model):
         self.average_output_size =  self.output_size / self.execution_counter
                 
         return r
-        
+    def __str__(self):
+        return "ReferenceFunction: %s" % self.name
+    
+    

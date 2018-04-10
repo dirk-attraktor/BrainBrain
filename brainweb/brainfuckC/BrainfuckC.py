@@ -62,7 +62,7 @@ class BrainfuckC():
         
         optionheader.append( struct.pack("c", bytes('x',"ASCII"))) # x is end char    
         self.queue_stdin.put(b''.join(optionheader))
-        result = self.queue_stdout.get(timeout=1000)
+        result = self.queue_stdout.get()
         self.queue_stdout.task_done()        
                 
     def run(self, input, clear_memory = True):
@@ -86,7 +86,7 @@ class BrainfuckC():
 
         self.queue_stdin.put(b''.join(executionheader))
         
-        result = self.queue_stdout.get(timeout=2000)
+        result = self.queue_stdout.get()
         self.queue_stdout.task_done()
         return result 
 

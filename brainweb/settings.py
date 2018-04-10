@@ -91,7 +91,7 @@ DATABASES = {
 from django.db import connection
 cursor = connection.cursor()
 cursor.execute('PRAGMA temp_store = MEMORY;')
-cursor.execute('PRAGMA synchronous=OFF')
+cursor.execute('PRAGMA synchronous = OFF')
 
 
 

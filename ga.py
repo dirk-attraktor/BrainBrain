@@ -8,6 +8,7 @@ import numpy as np
 import reward
 import p2pClient
 import re
+import itertools
 
 REFRESH_REFERENCE_FUNCTION_FROM_DB = True
 
@@ -137,7 +138,13 @@ class Evolution():
             if self.selected_individual == None:
                 #print(" selecting individual")
                 if random.random() < self.referenceFunctionRate or self.problem.default_max_populationsize == 0:
-                    self.selected_individual = self.loaded_referenceFunctions[random.choice(list(self.loaded_referenceFunctions.keys()))]
+                    reffs = [x[1] for x in self.loaded_referenceFunctions.items()]
+                    reffs.sort(key=lambda x:( float("-inf") if x.fitness is None else x.fitness ), reverse = True)
+                    for reff in itertools.cycle(reffs):
+                        if random.random() < 0.5:
+                            self.selected_individual = reff
+                            break
+                    #self.selected_individual = self.loaded_referenceFunctions[random.choice()]
                     #if REFRESH_REFERENCE_FUNCTION_FROM_DB == True:
                     #    if self.problem.sync_to_database == True:
                     #        self.selected_individual.refresh_from_db()
@@ -168,28 +175,28 @@ class Evolution():
     
 
     
-    def reward(self,value,count = 1,rewardWarmup = False,selectNewIndividual = True):
+    def reward(self,value,evaluations = 1,rewardWarmup = False,selectNewIndividual = True):
         if self.warmup == True and rewardWarmup == False:
             #print("warmup reward not happending")
             return
         #print("REWARD")
-        if type(self.selected_individual) == ReferenceFunction and count != 1:
-            print("ref: %s" % count)
+        if type(self.selected_individual) == ReferenceFunction and evaluations != 1:
+            print("ref: %s" % evaluations)
         if self.selected_individual != None:
-            for _ in range(0,count):
-                self.selected_individual.addFitness(value)
+            self.selected_individual.addFitness(value, evaluations)
         if selectNewIndividual == True:
             self.selected_individual = None
         if self.selected_population != None: #
-            individuals = self.selected_population.getIndividuals() 
+            if self.selected_population.hasUnratedIndividual() == False:
+            #individuals = self.selected_population.getIndividuals() 
         
-            minEvals = self.selected_population.min_fitness_evaluation_per_individual
-            if self.warmup == True and minEvals > 100 :
-                minEvals = minEvals / 10
+            #minEvals = self.selected_population.min_fitness_evaluation_per_individual
+            #if self.warmup == True and minEvals > 100 :
+            #    minEvals = minEvals / 10
         
-            underrated = [i for i in individuals if i.fitness_evalcount  < minEvals]
-            if len(underrated) == 0:
-                #print("REWARD GA STEP1")
+            #underrated = [i for i in individuals if i.fitness_evalcount  < minEvals]
+            #if len(underrated) == 0:
+                print("REWARD GA STEP1")
                 ga_step(self.selected_population)
     
     def save(self):
@@ -354,11 +361,11 @@ mutate_code_evolution = Evolution(
     max_generations = -1,
     max_individuals = -1,
     max_populationsize = 100,
-    referenceFunctionRate=0.7,
-    max_code_length = 2000, 
+    referenceFunctionRate=0.6,
+    max_code_length = 3000, 
     min_code_length = 50,
     max_steps = 1000,
-    min_fitness_evaluation_per_individual = 2000,
+    min_fitness_evaluation_per_individual = 1500,
     usePriorKnowledge = True,
     useP2P = True,  #warmup = True,
     sync_to_database = True,
@@ -448,11 +455,11 @@ crossover_code_evolution = Evolution(
     max_generations = -1, 
     max_individuals = -1,
     max_populationsize = 100,
-    referenceFunctionRate=0.7,    
-    max_code_length = 2000, 
+    referenceFunctionRate=0.6,    
+    max_code_length = 3000, 
     min_code_length = 50,
     max_steps = 10000,
-    min_fitness_evaluation_per_individual = 2000,
+    min_fitness_evaluation_per_individual = 1500,
     usePriorKnowledge = True,
     useP2P = True, #warmup = True,
     sync_to_database = True,    
@@ -560,16 +567,16 @@ def adjust_max_steps(population, individuals):
     #print("pop maxsteps %s " % population.max_steps)  
     if avg_steps * 3 > max_steps:
         if population.max_steps < max_steps * 2:
-            population.max_steps = int(population.max_steps + 20)
+            population.max_steps = int(float(population.max_steps) * 1.005)
             population.wasChanged = True
     else:
-        population.max_steps = int(population.max_steps - 25 )
+        population.max_steps = int(float(population.max_steps) * 0.995 )
         population.wasChanged = True
     if population.max_steps < 1000:
         population.max_steps = 1000
-    if population.max_steps > 100000:
-        print("100k steps for %s" % population)
-        population.max_steps = 100000
+    if population.max_steps > 200000:
+        #print("200k steps for %s" % population)
+        population.max_steps = 200000
         
     if population.generation_count % 20 == 0:
         print("pop maxsteps %s " % population.max_steps)  
@@ -618,14 +625,17 @@ select_mutation_rate_evolution = Evolution(
 @select_mutation_rate_evolution.evolve      
 def select_mutation_rate_evolvable(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
     maxPopulationsize, maxIndividuals, individualCount, codeLength, relativFitness = maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness.split("\t")
-    return "1" # in percent 0..100 
+    rate = 1.0 / float(maxPopulationsize) * float(relativFitness)
+    r  = 1 + (20 * rate)
+    return "%s" % int(r) # in percent 0..100 
+@select_mutation_rate_evolution.evolve          
+def select_mutation_rate_evolvable_fix1(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    return "1" # in percent 0..100    
 @select_mutation_rate_evolution.evolve          
 def select_mutation_rate_evolvable_fix5(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
-    maxPopulationsize, maxIndividuals, individualCount, codeLength, relativFitness = maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness.split("\t")
     return "5" # in percent 0..100    
 @select_mutation_rate_evolution.evolve      
 def select_mutation_rate_evolvable_fix10(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
-    maxPopulationsize, maxIndividuals, individualCount, codeLength, relativFitness = maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness.split("\t")
     return "10" # in percent 0..100
 @select_mutation_rate_evolution.evolve     
 def select_mutation_rate_evolvable_fix15(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
@@ -642,8 +652,7 @@ def select_mutation_rate_evolvable_fix40(maxPopulationsize_maxIndividuals_indivi
 @select_mutation_rate_evolution.evolve     
 def select_mutation_rate_evolvable_fix50(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
     return "50" # in percent 0..100
-   
-   
+
 def select_mutation_rate(population, individual, relativFitness):
     parameters = "%s\t%s\t%s\t%s\t%s" % (population.max_populationsize, population.max_individuals, population.individual_count, len(individual.code), relativFitness)
     
@@ -653,7 +662,7 @@ def select_mutation_rate(population, individual, relativFitness):
         result = select_mutation_rate_evolvable(parameters )
         try:
             i = int(result)
-            if i < 1 or i > 90:
+            if i < 1 or i > 60:
                 print("select_mutation_rate_evolvable bad : %s" % i)
                 select_mutation_rate_evolution.reward(-100,100)
                 select_mutation_rate_evolution.save()
@@ -665,7 +674,164 @@ def select_mutation_rate(population, individual, relativFitness):
 
     return "20" 
     
+    
+  
+select_mutation_propability_evolution = Evolution(
+    "select_mutation_propability", 
+    max_generations = -1, 
+    max_individuals = -1,
+    max_populationsize = 100,
+    referenceFunctionRate=0.7,    
+    max_code_length = 1000, 
+    min_code_length = 20,
+    max_steps = 10000,
+    min_fitness_evaluation_per_individual = 2000,
+    usePriorKnowledge = True,
+    useP2P = True, #warmup = True,
+    sync_to_database = True,    
+)
+@select_mutation_propability_evolution.evolve      
+def select_mutation_propability_evolvable(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    maxPopulationsize, maxIndividuals, individualCount, codeLength, relativFitness = maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness.split("\t")
+    mutation_propability = 100.0 / float(maxPopulationsize) * float(relativFitness) # prop is reverse to fitness
+    # cap so limits for this and evolved function are the same
+    if mutation_propability > 80:
+        mutation_propability = 80 
+    if mutation_propability < 1:
+        mutation_propability = 1 
+    return "%s" % int(mutation_propability)   
+@select_mutation_propability_evolution.evolve      
+def select_mutation_propability_evolvable_high(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    maxPopulationsize, maxIndividuals, individualCount, codeLength, relativFitness = maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness.split("\t")
+    mutation_propability = 100.0 / float(maxPopulationsize) * float(relativFitness) # prop is reverse to fitness
+    # cap so limits for this and evolved function are the same
+    if mutation_propability > 80:
+        mutation_propability = 80 
+    if mutation_propability < 20:
+        mutation_propability = 20 
+    return "%s" % int(mutation_propability)    
+@select_mutation_propability_evolution.evolve      
+def select_mutation_propability_evolvable_fix10(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    return "10" # in percent 0..100 
+@select_mutation_propability_evolution.evolve          
+def select_mutation_propability_evolvable_fix20(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    return "20" # in percent 0..100    
+@select_mutation_propability_evolution.evolve      
+def select_mutation_propability_evolvable_fix30(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    return "30" # in percent 0..100
+@select_mutation_propability_evolution.evolve     
+def select_mutation_propability_evolvable_fix40(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    return "40" # in percent 0..100
+@select_mutation_propability_evolution.evolve     
+def select_mutation_propability_evolvable_fix50(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    return "50" # in percent 0..100
+@select_mutation_propability_evolution.evolve     
+def select_mutation_propability_evolvable_fix60(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    return "60" # in percent 0..100
+
+def select_mutation_propability(population, individual, relativFitness):
+    parameters = "%s\t%s\t%s\t%s\t%s" % (population.max_populationsize, population.max_individuals, population.individual_count, len(individual.code), relativFitness)
+    
+    tries = 10
+    while tries > 0:
+        tries -= 1 
+        result = select_mutation_propability_evolvable(parameters )
+        try:
+            i = int(result)
+            if i < 1 or i > 80:
+                print("select_mutation_propability_evolvable bad : %s" % i)
+                select_mutation_propability_evolution.reward(-100,100)
+                select_mutation_propability_evolution.save()
+            return "%s" % i
+        except:
+            print("select_mutation_propability_evolvable bad1")
+            select_mutation_propability_evolution.reward(-100,500)
+            select_mutation_propability_evolution.save()
+
+    return "20"     
+    
+  
+  
+select_crossover_propability_evolution = Evolution(
+    "select_crossover_propability", 
+    max_generations = -1, 
+    max_individuals = -1,
+    max_populationsize = 100,
+    referenceFunctionRate=0.7,    
+    max_code_length = 1000, 
+    min_code_length = 20,
+    max_steps = 10000,
+    min_fitness_evaluation_per_individual = 2000,
+    usePriorKnowledge = True,
+    useP2P = True, #warmup = True,
+    sync_to_database = True,    
+)
+@select_crossover_propability_evolution.evolve      
+def select_crossover_propability_evolvable(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    maxPopulationsize, maxIndividuals, individualCount, codeLength, relativFitness = maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness.split("\t")
+    #crossover_propability = (1.0 / len_individuals * (len_individuals-i)) / 2.0 # prop is fitness
+    #crossover_propability = 100.0 / float(maxPopulationsize) * float(relativFitness) # prop is reverse to fitness
+    crossover_propability = (100.0 / float(maxPopulationsize) * (float(maxPopulationsize)-float(relativFitness))) / 2.0 # prop is fitness
+    # cap so limits for this and evolved function are the same
+    if crossover_propability > 80:
+        crossover_propability = 80 
+    if crossover_propability < 1:
+        crossover_propability = 1 
+    return "%s" % int(crossover_propability)
+@select_crossover_propability_evolution.evolve      
+def select_crossover_propability_evolvable_high(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    maxPopulationsize, maxIndividuals, individualCount, codeLength, relativFitness = maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness.split("\t")
+    #crossover_propability = (1.0 / len_individuals * (len_individuals-i)) / 2.0 # prop is fitness
+    #crossover_propability = 100.0 / float(maxPopulationsize) * float(relativFitness) # prop is reverse to fitness
+    crossover_propability = (100.0 / float(maxPopulationsize) * (float(maxPopulationsize)-float(relativFitness))) # prop is fitness
+    # cap so limits for this and evolved function are the same
+    if crossover_propability > 80:
+        crossover_propability = 80 
+    if crossover_propability < 1:
+        crossover_propability = 1 
+    return "%s" % int(crossover_propability)    
+@select_crossover_propability_evolution.evolve      
+def select_crossover_propability_evolvable_fix10(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    return "10" # in percent 0..100 
+@select_crossover_propability_evolution.evolve          
+def select_crossover_propability_evolvable_fix20(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    return "20" # in percent 0..100    
+@select_crossover_propability_evolution.evolve      
+def select_crossover_propability_evolvable_fix30(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    return "30" # in percent 0..100
+@select_crossover_propability_evolution.evolve     
+def select_crossover_propability_evolvable_fix40(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    return "40" # in percent 0..100
+@select_crossover_propability_evolution.evolve     
+def select_crossover_propability_evolvable_fix50(maxPopulationsize_maxIndividuals_individualCount_codeLength_relativFitness):
+    return "50" # in percent 0..100
+
+def select_crossover_propability(population, individual, relativFitness):
+    parameters = "%s\t%s\t%s\t%s\t%s" % (population.max_populationsize, population.max_individuals, population.individual_count, len(individual.code), relativFitness)
+    
+    tries = 10
+    while tries > 0:
+        tries -= 1 
+        result = select_crossover_propability_evolvable(parameters )
+        try:
+            i = int(result)
+            if i < 1 or i > 80:
+                print("select_crossover_propability_evolvable bad : %s" % i)
+                select_crossover_propability_evolution.reward(-100,100)
+                select_crossover_propability_evolution.save()
+            return "%s" % i
+        except Exception as e:
+            print("select_crossover_propability_evolvable bad1")
+            select_crossover_propability_evolution.reward(-100,500)
+            select_crossover_propability_evolution.save()
+
+    return "20"     
+    
+    
+
+  
 def mutate_and_crossover(population):
+    TRACK_STUFF = True
     individuals = population.getIndividuals(sorted=True)
 
     last_best_fitness = population.best_fitness
@@ -698,36 +864,45 @@ def mutate_and_crossover(population):
     
     neuro_mutate_evolution.reward(mutate_code_evolution_reward)
     neuro_mutate_evolution.save()
-    
-    crossover_code_evolution.reward(crossover_code_evolution_reward)
-    crossover_code_evolution.save()
+    if TRACK_STUFF == False: # 
+        crossover_code_evolution.reward(crossover_code_evolution_reward)
+        crossover_code_evolution.save()
     
     if population.generation_count > 200:
         if population.generation_count % 100 == 0: # mutation rate evaluated over multiple generations
             select_mutation_rate_evolution.reward(select_mutation_rate_evolution_reward, selectNewIndividual = True)   
+            select_mutation_propability_evolution.reward(select_mutation_rate_evolution_reward, selectNewIndividual = True)   
+            select_crossover_propability_evolution.reward(select_mutation_rate_evolution_reward, selectNewIndividual = True)   
         else:
             select_mutation_rate_evolution.reward(select_mutation_rate_evolution_reward, selectNewIndividual = False)   
+            select_mutation_propability_evolution.reward(select_mutation_rate_evolution_reward, selectNewIndividual = False)   
+            select_crossover_propability_evolution.reward(select_mutation_rate_evolution_reward, selectNewIndividual = False)   
         select_mutation_rate_evolution.save()
+        select_mutation_propability_evolution.save()
+        select_crossover_propability_evolution.save()
         
     adjust_max_steps(population,individuals)
     adjust_max_codelength(population, individuals)    
-    TRACK_STUFF = False
+    
 
     
     if population.generation_count % 20 == 0:
         print("Problem '%s'" % (population.problem.name ))
         print("Generation '%s'" % (population.generation_count ))
         print("Individual count '%s'" % (population.individual_count ))
-        print("Best Fitness: %s" % individuals[0].fitness)
+        print("Best Fitness: %s" % format(individuals[0].fitness, '.12f'))
         print("avg Fitness: %s" % population.average_fitness)
         x = bytearray(population.best_code,"UTF-8")
         if len(x) > 50:
-            print("Best: %s" % x[:100])
+            print("Best: %s" % x[:200])
         else:
             print("Best: %s" % x)
          
     len_individuals = len(individuals)
     if TRACK_STUFF == True:
+        total_crossovers = 0.0
+        good_crossovers = 0.0
+        
         for i in range(0,int(len_individuals/10)):  # only top 
             try:
                 individuals[i].did_crossover
@@ -738,25 +913,56 @@ def mutate_and_crossover(population):
             except: 
                 individuals[i].did_mutate = False            
             if individuals[i].did_crossover == True:
+                total_crossovers += 1
                 max_parent_fitness = max([p["fitness"] for p in individuals[i].parents])
                 if individuals[i].fitness > max_parent_fitness:
-                    print("juhu crossover")
-                    print(individuals[i])
-                    print(individuals[i].parents)
+                    #print("juhu crossover")
+                    #print(individuals[i])
+                    #print(individuals[i].parents)
+                    good_crossovers += 1                    
             elif individuals[i].did_mutate == True: # only check mutate if no crossover
                 if individuals[i].pre_mutation["fitness"] < individuals[i].fitness:
                     #print("juhu mutate")
                     #print(individuals[i])
                     #print(individuals[i].pre_mutation)
                     None
+        if total_crossovers > 0:
+            crossover_code_evolution.reward(1.0 /  total_crossovers * good_crossovers)
+        else:
+            crossover_code_evolution.reward(0)
+        crossover_code_evolution.save()
+                    
         for i in range(0,len_individuals):
             individuals[i].did_mutate = False         
             individuals[i].did_crossover = False         
     
+    for i in range(0, len_individuals):
+        individual = individuals[i]
+        #crossover_propability = (1.0 / len_individuals * (len_individuals-i)) / 2.0 # prop is fitness
+        #print("crossover_propability %s" % crossover_propability)
+        crossover_propability = float( select_crossover_propability(population, individual, i) )/100.0
+        if random.random() < crossover_propability:
+            #print("crossover")
+            individual1 = individuals[i]
+            j = random.randint(5,len_individuals-1)
+            individual2 = individuals[j]
+            if individual1.fitness == None or individual2.fitness == None:
+                continue
+            newcode = crossover_code(individual1.code, individual2.code) 
+            if TRACK_STUFF == True:
+                if individual1.fitness != None and individual2.fitness != None and  individual1.fitness != 0 and individual2.fitness != 0: # track crossover
+                    individuals[j].did_crossover = True
+                    individuals[j].parents = [
+                        {"fitness" : individual1.fitness, "code": individual1.code, },
+                        {"fitness" : individual2.fitness, "code": individual2.code, },
+                    ]
+            individuals[j].setCode(newcode)    
+    
     for i in range(len_individuals-1,0,-1):
         individual = individuals[i]
-        mutation_propability = 1.0 / len_individuals * i # prop is reverse to fitness
+        #mutation_propability = 1.0 / len_individuals * i # prop is reverse to fitness
         #print("mutation_propability %s" % mutation_propability)
+        mutation_propability = float( select_mutation_propability(population, individual, i) )/100.0
         if random.random() < mutation_propability:
             #print("mutate")
             mr = select_mutation_rate(population, individual, i)
@@ -771,24 +977,7 @@ def mutate_and_crossover(population):
                 
             individual.setCode(newcode)
             
-    for i in range(0, len_individuals):
-        crossover_propability = (1.0 / len_individuals * (len_individuals-i)) / 2.0 # prop is fitness
-        #print("crossover_propability %s" % crossover_propability)
-        
-        if random.random() < crossover_propability:
-            #print("crossover")
-            individual1 = individuals[i]
-            j = random.randint(5,len_individuals-1)
-            individual2 = individuals[j]
-            newcode = crossover_code(individual1.code, individual2.code) 
-            if TRACK_STUFF == True:
-                if individual1.fitness != None and individual2.fitness != None and  individual1.fitness != 0 and individual2.fitness != 0: # track crossover
-                    individuals[j].did_crossover = True
-                    individuals[j].parents = [
-                        {"fitness" : individual1.fitness, "code": individual1.code, },
-                        {"fitness" : individual2.fitness, "code": individual2.code, },
-                    ]
-            individuals[j].setCode(newcode)
+
            
     for i in range(1, len_individuals):
         

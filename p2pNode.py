@@ -173,8 +173,10 @@ class p2pNode():
         mode = "node"
         if self.isPublicNode == True:
             mode = "supernode"
-            ws.send(json.dumps({"command":"registerSuperNode","args":{"ip":self.superNodeIp,"port":"4141"}}))
-   
+            try:
+                ws.send(json.dumps({"command":"registerSuperNode","args":{"ip":self.superNodeIp,"port":"4141"}}))
+            except Exception as e:
+                print("failed to registerSuperNode: %s" % e)
         try:
             problems = [x.name for x in Problem.objects.all()]
             ws.send(json.dumps({"command":"publishKnownProblems","args":{"problems":problems}}))
@@ -183,15 +185,20 @@ class p2pNode():
 
         supernode_connection_threads[peer.host]["connection"] = ws
         while True:
-            result =  ws.recv()
+            try:
+                result =  ws.recv()
+            except Exception as e:
+                print("failed to received data: '%s'" % e)
+                break
             data = {}
             try:
                 self.parseCommand(json.loads(result),peer)
             except Exception as e:
                 print("failed to parse received data: '%s'" % e)
-        
-        ws.close()
-        
+        try:
+            ws.close()
+        except:
+            None
         supernode_connection_threads[peer.host]["connection"] = None
         supernode_connection_threads[peer.host]["thread"] = None
         supernode_connection_threads[peer.host]["peer"] = None
