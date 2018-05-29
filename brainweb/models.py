@@ -443,6 +443,9 @@ class Individual(models.Model):
     average_output_size = models.FloatField(default = 0) 
     average_input_size = models.FloatField(default = 0) 
     
+    example_input = models.CharField( max_length=200000,default="")
+    example_output = models.CharField( max_length=200000,default="")
+    
     parent_fitness =  models.FloatField(default = None,blank=True,null=True) # in case of crossover, set this to max parent fitness, used to track crossover quality
     
     def __init__(self,*args,**kwargs):
@@ -482,6 +485,10 @@ class Individual(models.Model):
         
         inputlength = len(input)
         self.execution_counter += 1
+        if self.example_input == "" or self.example_output == "" or self.execution_counter % 50 == 0:
+            self.example_input = input
+            self.example_output = result.output
+            
         
         self.program_steps += result.program_steps
         self.memory_usage += result.memory_usage

@@ -142,6 +142,8 @@
                                             
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Code length</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Code</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Input Example</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Output Example</th>
                                         </tr>
                                     </thead>
                                     <tbody>                                    
@@ -164,6 +166,8 @@
                                                     
                                                     <td>{{ object.code_length |floatformat:0 }} </td>
                                                     <td>{{ object.code}}</td>
+                                                    <td>{{ object.example_input}}</td>
+                                                    <td>{{ object.example_output}}</td>
                                                 <td>
                                                 </td>
                                             </tr>

@@ -114,13 +114,8 @@ class BrainfuckC():
                 result = self._parse_output(p.stdout)
                 self.queue_stdout.put(result)
                 
-            except IOError as e:
-                print(e)
+            except Exception as e:
                 self.queue_stdout.put(None)       
-                if e.errno == errno.EPIPE or e.errno == errno.EINVAL:
-                    break
-                else:
-                    raise
         print("THREAD EXIT")                    
         try:
             p.stdin.close()
