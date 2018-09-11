@@ -6,27 +6,10 @@ import json
 import bson
 import string
 import threading
-import redis
 import time
 from difflib import SequenceMatcher
 import gym
 import numpy
-import redis
-
-redisconnection = redis.StrictRedis(unix_socket_path='/var/run/redis/redis.sock', db=8)
-
-def clear_redis():
-    pipe = redisconnection.pipeline()
-    for rkey in redisconnection.keys():
-        rkey = rkey.decode("ASCII")
-        for key in ["individual.", "population.", "species.", "referenceFunction.", "cachecontrol.", "instance."]:
-            if rkey.startswith(key):
-                pipe.delete(rkey)
-                break    
-    pipe.execute()
-
-#clear_redis()    
-#exit(0)
 
 from libs import reward
 from braintrain import google_testcases
