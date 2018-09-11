@@ -307,8 +307,9 @@ class p2pNode():
                     else:
                         None
             for p2pSuperNodeConnection in p2pSuperNodeConnections:
-                if p2pSuperNodeConnection.starttime + 7200 < int(time.time()): # close every hour
+                if p2pSuperNodeConnection.starttime + 1800 < int(time.time()): # close every hour
                     p2pSuperNodeConnection.close()
+                    break
             time.sleep(60)
      
     def _runserver(self):
