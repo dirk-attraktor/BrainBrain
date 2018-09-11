@@ -576,9 +576,9 @@ def main():
         nrofThreads = int(sys.argv[1])
     except:
         None
-    nrOfTrainingRuns = 10
+    nrOfTrainingRuns = 1
     try:
-        nrOfTrainingRuns = int(sys.argv[1])
+        nrOfTrainingRuns = int(sys.argv[2])
     except:
         None
     print("Starting %s threads a %s runs" % (nrofThreads, nrOfTrainingRuns))
