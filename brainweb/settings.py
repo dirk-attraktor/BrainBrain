@@ -80,11 +80,11 @@ WSGI_APPLICATION = 'brainweb.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
-'''
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'NAME': os.path.join(BASE_DIR, 'db_ramdisk/db.sqlite3'),
         'OPTIONS': {
             'timeout': 60,
         }
@@ -94,16 +94,12 @@ DATABASES = {
 from django.db import connection
 cursor = connection.cursor()
 
-cursor.execute("PRAGMA main.synchronous=OFF;")
-cursor.execute("PRAGMA main.journal_mode= MEMORY;")
-cursor.execute('PRAGMA main.temp_store  = MEMORY;')
+#cursor.execute("PRAGMA main.synchronous=OFF;")
+#cursor.execute("PRAGMA main.journal_mode= MEMORY;")
+#cursor.execute('PRAGMA main.temp_store  = MEMORY;')
+
+
 '''
-
-#cursor.execute('PRAGMA journal_mode  = MEMORY;')
-#cursor.execute('PRAGMA synchronous = OFF')
-#cursor.execute("PRAGMA default_cache_size = -50000")
-
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql', 
@@ -117,7 +113,7 @@ DATABASES = {
         }
     }
 }
-
+'''
 '''
 LOGGING = {
     'version': 1,
