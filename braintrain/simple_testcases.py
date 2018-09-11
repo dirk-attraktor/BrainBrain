@@ -5,7 +5,8 @@ import itertools
 import random
 import string
 import json
-   
+import bson
+ 
 def get_examplesource(taskname):
     max_cachesize = 4000
     cache_hitrate = 0.999
@@ -30,6 +31,44 @@ def get_examplesource(taskname):
                 yield r 
     return f
     
+def examplesource_add_2_bytes():
+    while True:
+        a = random.randint(0, 128)
+        b = random.randint(0, 128)
+        c = a + b
+        yield [bytes([a,b]) , bytes([c])]
+        
+def examplesource_sub_2_bytes():
+    while True:
+        a = random.randint(128, 255)
+        b = random.randint(0, 128)
+        c = a - b
+        yield [bytes([a,b]) , bytes([c])]
+  
+def examplesource_add_3_integer_bson():
+    while True:
+        a = random.randint(0, 1000000000)
+        b = random.randint(0, 1000000000)
+        c = random.randint(0, 1000000000)
+        d = a + b
+        yield [bson.dumps({0:a, 1:b, 2:c}) , bson.dumps({0:d})]
+    
+  
+def examplesource_add_2_integer_bson():
+    while True:
+        a = random.randint(0, 2000000000)
+        b = random.randint(0, 2000000000)
+        c = a + b
+        yield [bson.dumps({0:a,1:b}) , bson.dumps({0:c})]
+    
+def examplesource_sub_2_integer_bson():
+    while True:
+        a = random.randint(0, 2000000000)
+        b = random.randint(0, 2000000000)
+        c = a - b
+        yield [bson.dumps({0:a,1:b}) , bson.dumps({0:c})]
+      
+    
 def examplesource_add_2_integer():
     while True:
         a = random.randint(0, 2000000000)
@@ -43,7 +82,7 @@ def examplesource_sub_2_integer():
         b = random.randint(0, 2000000000)
         c = a - b
         yield [bytes("%s\t%s" % (a, b),"ASCII") , bytes("%s" % c,"ASCII")]
-    return r
+    
     
 def examplesource_add_2_float():
     while True:
@@ -78,6 +117,11 @@ def secret_string_2():
 task_mapping =  {
     "my-testcase find secret string 1": secret_string_1,
     "my-testcase find secret string 2": secret_string_2,
+    "my-testcase add 2 bytes": examplesource_add_2_bytes,
+    "my-testcase sub 2 bytes": examplesource_sub_2_bytes,
+    "my-testcase add 2 integer bson": examplesource_add_2_integer_bson,
+    "my-testcase add 3 integer bson": examplesource_add_3_integer_bson,
+    "my-testcase sub 2 integer bson": examplesource_sub_2_integer_bson,
     "my-testcase add 2 integer": examplesource_add_2_integer,
     "my-testcase sub 2 integer": examplesource_sub_2_integer,
     "my-testcase add 2 float": examplesource_add_2_float,
