@@ -20,7 +20,7 @@ from brainlogic.EvolutionApi import EvolutionTraining
 from brainlogic.EvolutionApi import EvolutionReplacement
 
 
-DEFAULT_TRAIN_STEPS = 15000
+DEFAULT_TRAIN_STEPS = 25000
 
 
 def trainMutation(species_name, problemdefinition):
