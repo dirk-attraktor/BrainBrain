@@ -80,25 +80,105 @@ WSGI_APPLICATION = 'brainweb.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
-
+'''
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'OPTIONS': {
+            'timeout': 60,
+        }
     }
 }
 
 from django.db import connection
 cursor = connection.cursor()
-cursor.execute('PRAGMA temp_store = MEMORY;')
-cursor.execute('PRAGMA synchronous = OFF')
 
+cursor.execute("PRAGMA main.synchronous=OFF;")
+cursor.execute("PRAGMA main.journal_mode= MEMORY;")
+cursor.execute('PRAGMA main.temp_store  = MEMORY;')
+'''
+
+#cursor.execute('PRAGMA journal_mode  = MEMORY;')
+#cursor.execute('PRAGMA synchronous = OFF')
+#cursor.execute("PRAGMA default_cache_size = -50000")
+
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql', 
+        'NAME': 'brainbrain',
+        'USER': 'brainbrain',
+        'PASSWORD': 'brainbrain',
+        'HOST': 'localhost',   # Or an IP Address that your DB is hosted on
+        'PORT': '3306',
+        'OPTIONS' :  {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        }
+    }
+}
+
+'''
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse'
+        }
+    },
+    'formatters': {
+        'standard': {
+            'format' : "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
+            'datefmt' : "%d/%b/%Y %H:%M:%S"
+        },
+    },
+    'handlers': {
+        'mail_admins': {
+            'level': 'ERROR',
+            'filters': ['require_debug_false'],
+            'class': 'django.utils.log.AdminEmailHandler'
+        },
+        'console': {
+            # logging handler that outputs log messages to terminal
+            'class': 'logging.StreamHandler',
+            'level': 'DEBUG', # message level to be written to console
+        },
+        'logfile': {
+            'level':'DEBUG',
+            'class':'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),  "logfile"),
+            'maxBytes': 50000,
+            'backupCount': 2,
+            'formatter': 'standard', 
+        },
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['mail_admins'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+        'django.db': {
+            'handlers': ['logfile'],
+            'level': 'DEBUG',
+            'propagate': False,            # django also has database level logging
+        },
+    }
+}
+'''
+
+#cursor.execute('PRAGMA main.page_size = 4096')
+#cursor.execute('PRAGMA main.cache_size = 10000')
+#cursor.execute('PRAGMA main.locking_mode = EXCLUSIVE')
+#cursor.execute('PRAGMA main.synchronous = NORMAL')
+#cursor.execute('PRAGMA main.journal_mode = WAL')
 
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'de'
 
 TIME_ZONE = 'UTC'
 
@@ -115,4 +195,5 @@ CRISPY_TEMPLATE_PACK = 'bootstrap3'
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = "%s/static" % BASE_DIR
 

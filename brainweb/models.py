@@ -4,643 +4,571 @@ from django.db.models import F, Q
 import time
 import requests
 import json
-import p2pClient
 from django.db import connection
 import datetime
 from django.utils import timezone
 import traceback
-from .brainfuckC import BrainfuckC
-REFRESH_REFERENCE_FUNCTION_FROM_DB = True
+from django.utils import timezone
+import redis
+from django.db import transaction
+import binascii
 
-brainfuckCinstance = BrainfuckC.BrainfuckC()
-
-GENES = [
-    '>', # inkrementiert den Zeiger
-    '<', # dekrementiert den Zeiger
-    '+', # inkrementiert den aktuellen Zellenwert
-    '-', # dekrementiert den aktuellen Zellenwert
-    '[', # Springt nach vorne, hinter den passenden ]-Befehl, wenn der aktuelle Zellenwert 0 ist	
-    ']', # Springt nach vorne, hinter den passenden ]-Befehl, wenn der aktuelle Zellenwert 0 ist
-    '.', # Gibt den aktuellen Zellenwert als ASCII-Zeichen auf der Standardausgabe aus
-    ',', # Liest ein Zeichen von der Standardeingabe und speichert dessen ASCII-Wert in der aktuellen Zelle
-    'N', # NoOp
-    'A', # NoOp
-    'B', # NoOp
-    'C', # NoOp
-    'D', # NoOp
-]
+redisconnection = redis.StrictRedis(unix_socket_path='/var/run/redis/redis.sock', db=8)
 
 
-def lock(modelobject):
-    lockid = random.randint(0,9999999)
-    updated = modelobject.objects.filter(pk=modelobject.id,lock="").update(lock = lockid)
-    if updated == 1:
-        return lockid
-    return None
 
-class Lock(models.Model):
-    id       = models.AutoField(primary_key=True)
-    created  = models.DateTimeField('created',auto_now_add=True)
-    updated  = models.DateTimeField('updated',auto_now=True)  
-    population_id = models.CharField( max_length=200,default="")
-
-    
 class Peer(models.Model):
-    id       = models.AutoField(primary_key=True)
+    id       = models.BigAutoField(primary_key=True)
     created  = models.DateTimeField('created',auto_now_add=True)
     updated  = models.DateTimeField('updated',auto_now=True)  
     lastfail  = models.DateTimeField(null=True,blank=True,default=None)  
     host     = models.CharField( max_length=200,default="")
-    port     = models.IntegerField(default=4141)
+    port     = models.BigIntegerField(default=4141)
     supernode = models.BooleanField(default=False)
-    failcount = models.IntegerField(default=0)
-    
+    failcount = models.BigIntegerField(default=0)
     def __str__(self):
         return "Peer %s:%s supernode:%s" %(self.host,self.port,self.supernode) 
+
         
 class Problem(models.Model):
-    id       = models.AutoField(primary_key=True)
+    id       = models.BigAutoField(primary_key=True)
     created  = models.DateTimeField('created',auto_now_add=True)
     updated  = models.DateTimeField('updated',auto_now=True)  
     name     = models.CharField( max_length=200,default="", unique=True)
-    description = models.CharField( max_length=200,default="")
+    description = models.CharField( max_length=200,default="")        
+    # -> species
+    def __str__(self):
+        return "Problem %s" %(self.name) 
+        
+    def getP2PIndividuals(self,limit = 1):
+        species_ids =  self.species.all().values_list('id', flat=True)
+        #print(species_ids)
+        population_ids = Population.objects.filter(species__in=list(species_ids)).filter(fitness_relative__gt=0.75).values_list('id', flat=True)
+        #print(population_ids)
+        individual_ids = Individual.objects.filter(population__in=list(population_ids)).filter(fitness_relative_adult__gt=0.75).values_list('id', flat=True)
+        individual_ids = [i for i in individual_ids]
+        count = len(individual_ids)
+        if count == 0:
+            return []
+        random_ids = random.sample(individual_ids, min(count, limit))
+        #print(random_ids)
+        individuals = Individual.objects.filter(population__in=list(population_ids)).filter(id__in=random_ids)
+        #print(individuals)
+        return individuals   
 
+# a species may learn to solve one or more problems by creating populations that contain individuals    
+
+
+
+class Species(models.Model ):
+    id       = models.BigAutoField(primary_key=True)
+    created  = models.DateTimeField('created',auto_now_add=True)
+    updated  = models.DateTimeField('updated',auto_now=True)  
+    name     = models.CharField( max_length=200,default="", unique=True)
+    problems = models.ManyToManyField(Problem, related_name='species',db_index=True)
+    
     usePriorKnowledge = models.BooleanField(default=False)
     useP2P = models.BooleanField(default=False)
 
-    default_max_populationsize =  models.IntegerField(default = 100)  # max number of living individuals
-    default_max_individuals  = models.IntegerField(default = -1)  # total number of individuals to generate during evolution, or -1 for unlimited, evolution will stop and return null for new unrated individuals at this point
-    default_max_generations =  models.IntegerField(default = -1) # total number of evolutionary steps during evolution, or -1 for unlimited
-    default_max_code_length =  models.IntegerField(default = 20) # total number of evolutionary steps during evolution, or -1 for unlimited
-    default_min_code_length =  models.IntegerField(default = 20) # total number of evolutionary steps during evolution, or -1 for unlimited
-    default_max_steps =  models.IntegerField(default = -1) 
-    default_min_fitness_evaluation_per_individual =  models.IntegerField(default = -1) 
- 
-    sync_to_database = models.BooleanField(default=False)
+    max_populations =  models.BigIntegerField(default = 10)  # max number of parallel populations
+    max_populationsize =  models.BigIntegerField(default = 100)  # max number of living individuals per population
+    min_populationsize =  models.BigIntegerField(default = 50)  # max number of living individuals per population
+    max_code_length =  models.BigIntegerField(default = 20) #
+    min_code_length =  models.BigIntegerField(default = 20) #
 
+    max_fitness_evaluations =  models.BigIntegerField(default = 100) 
+    min_fitness_evaluations =  models.BigIntegerField(default =  10)
+    
+    
+    max_memory =  models.BigIntegerField(default = 20) #
+    max_permanent_memory =  models.BigIntegerField(default = 20) #
+    
+    max_steps =  models.BigIntegerField(default = -1) 
+ 
+    individuals_created =  models.BigIntegerField(default = 0) 
+
+    reference_function_rate =  models.FloatField(default =  0)
     # -> populations
     # -> referencefunctions
       
     class Meta:
         ordering = ["-updated"]
 
-    def getReferenceFunction(self,name):
-        try:
-            return self.referencefunctions.get(name=name)
-        except Exception as e:
-            print("ReferenceFunction Exception")
-            print(e)
-            return None
-        
-    def getTopIndividuals(self,limit = 10):
-        r = []
-        for p in self.populations.all():    
-            i = p.individuals.filter(~Q(fitness = None))[0:limit]
-            if i.count() > 0:
-                [r.append(x) for x in i]
-        return sorted(r,key= lambda x:x.fitness,reverse = True)[0:limit]
-       
-    def addPopulation(self):
-        cnt = self.populations.count()
-        while cnt > 200:
-            self.populations.all()[cnt-1:cnt][0].delete()
-            
-            cnt = self.populations.count()
-            
-        population = Population()
-        population.problem = self
-        population.max_populationsize = self.default_max_populationsize
-        population.max_individuals = self.default_max_individuals
-        population.max_generations = self.default_max_generations
-        population.max_code_length = self.default_max_code_length
-        population.evolved_max_code_length = self.default_min_code_length
-        population.min_code_length = self.default_min_code_length
-        population.max_steps = self.default_max_steps
-        population.min_fitness_evaluation_per_individual = self.default_min_fitness_evaluation_per_individual
-        population.save()
-        population.initializeIndividuals()
-        return population
-        
-            
-    # FIRST item has factor x times the propability of being picked
-    def randomchoiceLinear(self,listlength, factor):
-        while True: 
-            index = random.randint(0, listlength - 1)        
-            factorForIndex =  1+((index) * ( (float(factor)-1) / (listlength) ) )
-            prop = float(factorForIndex) / float(factor)
-            if random.random() < prop:
-                continue
-            return index    
-            
-    def getP2PIndividuals(self,limit = 9,depth=3):
-        if limit < 2:
-            limit = 2
-        result = []
-        for p in self.populations.all()[0:depth]:
-            individuals = p.individuals.all()
-            l = len(individuals)
-            if l == 0:
-                continue
-            tmpresult = [individuals[0]]
-            tries = 0
-            while len(tmpresult) < int(limit/depth) and tries < limit:
-                tries += 1
-                index = self.randomchoiceLinear(l,30)
-                individual = individuals[index]
-                if individual not in tmpresult and individual.fitness_evalcount > 0:
-                    tmpresult.append(individual)
-            result.extend(tmpresult)        
-        return result 
-   
-    def save(self):  
-        #print("save called in Problem")
-        super(type(self), self).save()
-       
     def __str__(self):
-        return "Problem: %s" % self.name
-    
-    
-    
+        return "Species: %s" % self.name
+
+    def to_redis(self):
+        pipe = redisconnection.pipeline()
+        for param in [
+            "max_populations",
+            "max_populationsize",
+            "min_populationsize",
+            "max_code_length",
+            "min_code_length",
+            "max_fitness_evaluations", # individuals with evals == max_fitness_evaluations die
+            "min_fitness_evaluations", # individuals with eval >= min_fitness_evaluations -> fitness == 0 die. ,  fitness != 0 go to adultsByFitness. 
+            "max_memory",
+            "max_permanent_memory",
+            "max_steps",
+            "individuals_created",
+            ]:
+            key = "species.%s.%s" % (self.id, param)
+            value = getattr(self, param)
+            pipe.set(key, value)
+            
+        for population in self.populations.all():
+            population.to_redis()
+            pipe.zadd("species.%s.populations.byTimespend"   % self.id, population.timespend_total, population.id)
+            pipe.zadd("species.%s.populations.byBestFitness" % self.id, population.best_individual_fitness, population.id)
+        pipe.execute()
+            
+    def from_redis(self):
+        self.individuals_created = int(redisconnection.get("species.%s.individuals_created" % self.id))
+        self.save()
+        cnt = 0
+        s = 0
+        max_pop_fitnesses = []
+        for population in self.populations.all():
+            population.from_redis()
+            ids_scores = redisconnection.zrange("population.%s.individuals.adultsByFitness" % population.id, 0, -1, withscores = True)
+            fitnesses = [ float(x[1]) for x in ids_scores]
+            try:
+                max_pop_fitness = max(fitnesses)
+            except:
+                max_pop_fitness = 0
+            max_pop_fitnesses.append(max_pop_fitness)
+            len_fitness = len(fitnesses)
+            if len_fitness > 0:
+                avg_pop_fitness = sum(fitnesses) / len_fitness
+            else:
+                avg_pop_fitness = 0
+            ti = time.time()
+            now = int(ti - ti%60)
+            redisconnection.set("stats.fitness.population.%s.%s" % ( population.id, now,  ), avg_pop_fitness )
+            redisconnection.expire("stats.fitness.population.%s.%s" % (  population.id, now, ), 3600*72 )
+            redisconnection.set("stats.fitness_max.population.%s.%s" % ( population.id, now,  ), max_pop_fitness )
+            redisconnection.expire("stats.fitness_max.population.%s.%s" % (  population.id, now, ), 3600*72 )
+            
+            cnt += 1
+            s += avg_pop_fitness
+        ti = time.time()
+        now = int(ti - ti%60)
+        redisconnection.set(   "stats.fitness.species.%s.%s" % ( self.id, now ), ( s / cnt ) )
+        redisconnection.expire("stats.fitness.species.%s.%s" % ( self.id, now ), 3600*72 )
+        redisconnection.set(   "stats.fitness_max.species.%s.%s" % ( self.id, now ), max(max_pop_fitnesses))
+        redisconnection.expire("stats.fitness_max.species.%s.%s" % ( self.id, now ), 3600*72 )
+        
+        
+    @staticmethod
+    def clear_redis(species_id):
+        pipe = redisconnection.pipeline()
+
+        for param in [
+            "max_populations",
+            "max_populationsize",
+            "min_populationsize",
+            "max_code_length",
+            "min_code_length",
+            "max_fitness_evaluations",
+            "min_fitness_evaluations",
+            "max_memory",
+            "max_permanent_memory",
+            "max_steps",
+            "individuals_created",
+            ]:
+            pipe.delete("species.%s.%s" % (species_id, param))
+        pipe.execute()
+   
+        population_ids = redisconnection.zrange("species.%s.populations.byTimespend" % species_id, 0, -1)
+        population_ids =[int(float(x)) for x in population_ids]     
+        for population_id in population_ids:
+            Population.clear_redis(population_id)
+            
+        redisconnection.delete("species.%s.populations.byTimespend" % species_id)
+        redisconnection.delete("species.%s.populations.byBestFitness" % species_id)
+
+
 class Population(models.Model):
-    id       = models.AutoField(primary_key=True)
+    id       = models.BigAutoField(primary_key=True,db_index=True)
     created  = models.DateTimeField('created',auto_now_add=True)
     updated  = models.DateTimeField('updated',auto_now=True)  
     
-    problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name='populations')
+    species = models.ForeignKey(Species, on_delete=models.CASCADE, related_name='populations',db_index=True)
+   
+    best_individual_id      = models.CharField( max_length=200,default="")
+    best_individual_fitness = models.FloatField(default = 0)
     
-    max_populationsize =  models.IntegerField(default = 100)  # max number of living individuals
-    max_individuals  = models.IntegerField(default = -1)  # total number of individuals to generate during evolution, or -1 for unlimited, evolution will stop and return null for new unrated individuals at this point
-    max_generations =  models.IntegerField(default = -1) # total number of evolutionary steps during evolution, or -1 for unlimited
-
-    min_code_length =  models.IntegerField(default = 20) #unchangeable limits
-    max_code_length =  models.IntegerField(default = 20)
-    max_steps  =  models.IntegerField(default = 20) # TODO
-    min_fitness_evaluation_per_individual  =  models.IntegerField(default = 1)
+    individuals_created =  models.BigIntegerField(default = 0)
+    timespend =  models.BigIntegerField(default = 0)
+    timespend_total =  models.BigIntegerField(default = 0)
+    fitness_relative =  models.FloatField(default = 1)
+    fitness_evaluations =  models.BigIntegerField(default = 0)
+    fitness_evaluations_total =  models.BigIntegerField(default = 0)
     
-    # evolable limits
-    evolved_max_code_length =  models.IntegerField(default = 20)
-    
-    
-    # stats
-    generation_count =  models.IntegerField(default = 0)
-    individual_count =  models.IntegerField(default = 0)
-    
-    # set right before ga_step in mutate_and_crossover, after all inds are evaluated, via self.updateStats()
-    best_fitness =  models.FloatField(default = None,blank=True,null=True)
-    best_code    = models.CharField( max_length=200000,default="")
-    average_fitness = models.FloatField(default = None,blank=True,null=True)
-    average_program_steps = models.FloatField(default = 0)
-    average_memory_usage = models.FloatField(default = 0)
-    average_inputbuffer_usage = models.FloatField(default = 0)
-    average_execution_time = models.FloatField(default = 0)
-        
     # -> individuals
      
     class Meta:
-        ordering = ["-created"]
-   
-    def __init__(self,*args,**kwargs):
-        self.wasChanged = False
-        self.individual_cache = None#
-        self.garunning = False
-        super(type(self), self).__init__(*args,**kwargs)
- 
-   
-    def lock(self):
-        try:
-            lock = Lock.objects.get(population_id = self.id)
-            if lock.updated <  timezone.now()-datetime.timedelta(minutes=10):
-                print("%s lock has expired")
-                lock.save()
-                return True
-            print("%s is locked, not locking again" % self)
-            return False
-        except Exception as e:
-            print("%s not locked, locking: %s" % (self,e))
-            l = Lock()
-            l.population_id = self.id
-            l.save()
-            return True
-            
-    def unlock(self):
-        try:
-            locks = Lock.objects.filter(population_id = self.id)
-            if len(locks)> 0:
-                for lock in locks:
-                    lock.delete()
-                print("%s unlocked" % self)
-            else:
-                print("%s not locked, not unlocking" % (self))
-        except Exception as e:
-            print("%s not locked, not unlocking: %s" % (self,e))
-            
-    def isLocked(self):
-        try:
-            lock = Lock.objects.get(population_id = self.id)
-            return True
-        except Exception as e:
-            print("%s is not locked: %s" % (self,e))
-            return False
-            
-    def initializeIndividuals(self):
-        diff =  self.max_populationsize - self.individuals.count()
-        while diff < 0: 
-            print("To many individuals found, killing")
-            random.choice(self.individuals.all()).delete()
-            diff =  self.max_populationsize - self.individuals.count()  
-            
-            
-        if diff > 0 and  self.problem.usePriorKnowledge == True:
-            individuals = self.problem.getP2PIndividuals(16,4)
-            for oldindividual in individuals:
-                individual = Individual()
-                individual.population = self
-                individual.code = oldindividual.code
-                individual.code_length = oldindividual.code_length
-                individual.save()
-                print("FROM OLD IND")
-                self.individual_count += 1
-                diff -= 1
-                if diff == 0:
-                    break
-                    
-        if diff > 0 and self.problem.usePriorKnowledge == True and self.problem.useP2P == True:
-            individual_datas = p2pClient.p2pClient().getIndividuals(self.problem.name,2)
-            print("individuals received from p2p for problem %s" % self.problem)
-            #indsToReplace = 1
-            for individual_data in individual_datas:
-                localindividuals = self.individuals.filter(code=individual_data["code"])
-                if localindividuals.count() > 0:
-                    print("exists local")
-                    localindividual = random.choice(localindividuals)
-                    localindividual.fitness_evalcount = (localindividual.fitness_evalcount + individual_data["fitness_evalcount"]) /2
-                    localindividual.fitness_sum = ( localindividual.fitness_sum + individual_data["fitness_sum"] ) / 2 
-                else:
-                    print("does not exist local")
-                    individuals = self.individuals.all()
-                    if diff > 0:
-                        individual = Individual()
-                        individual.population = self
-                        individual.code = individual_data["code"] # 
-                        individual.fitness_evalcount = 0 # individual_data["fitness_evalcount"]
-                        individual.fitness_sum = 0       # individual_data["fitness_sum"]
-                        individual.save()
-                        diff -= 1
-                        if diff == 0:
-                            break
+        ordering = ["-best_individual_fitness"]
 
-        while diff > 0:
-            individual = Individual()
-            individual.population = self
-            individual.setCode("".join([random.choice(GENES) for _ in range(0,self.min_code_length)]))
-            individual.save()
-            self.individual_count += 1
-            diff -= 1
-        self.wasChanged = True 
         
-    def getIndividuals(self, sorted = False):
-        #print("getIndividuals")
-        if self.individual_cache == None or self.problem.sync_to_database == True:
-            self.individual_cache = [i for i in self.individuals.all()]#
-        if sorted == True:
-            self.individual_cache.sort(key=lambda x:( float("-inf") if x.fitness is None else x.fitness, x.average_inputbuffer_usage,  -x.code_length, -x.average_execution_time  ), reverse = True)
-        return self.individual_cache
-        
-    def getUnratedIndividual(self):
-        #print("getUnratedIndividual")
-        if self.problem.sync_to_database == True:
-            unfit = self.individuals.filter(Q(fitness = None) | Q(fitness_evalcount__lt = self.min_fitness_evaluation_per_individual))
-            c = unfit.count()
-            if c > 0:
-                try:
-                    i = unfit[random.randint(0,c-1)]
-                    #print("quickr")
-                    return i
-                except:
-                    print("errror")
-        else: # local search
-            inds = self.getIndividuals()
-            len_inds = len(inds)
-            startposition = random.randint(0,len_inds-1)
-            position = startposition
-            while True:
-                ind = inds[position]
-                if ind.fitness == None or ind.fitness_evalcount < self.min_fitness_evaluation_per_individual:
-                    return ind           
-                position = (position + 1) % len_inds
-                if position == startposition:
-                    break
-        return None 
-            
-    def hasUnratedIndividual(self):
-        #print("hasUnratedIndividual")
-        if self.problem.sync_to_database == True:
-            unfit = self.individuals.filter(Q(fitness = None) | Q(fitness_evalcount__lt = self.min_fitness_evaluation_per_individual))
-            c = unfit.count()
-            if c > 0:
-                return True
-        else: # local search
-            inds = self.getIndividuals()
-            len_inds = len(inds)
-            startposition = random.randint(0,len_inds-1)
-            position = startposition
-            while True:
-                ind = inds[position]
-                if ind.fitness == None or ind.fitness_evalcount < self.min_fitness_evaluation_per_individual:
-                    return True
-                position = (position + 1) % len_inds
-                if position == startposition:
-                    break
-        return False             
-            
-    def getBestIndividual(self):
-        if self.individual_cache == None or self.problem.sync_to_database == True:
-            self.individual_cache = [i for i in self.individuals.all()]
-        try:
-            return [i for i in self.individual_cache if i.fitness != None][0]
-        except:
-            return None
-            
-    def updateStats(self):
-        self.wasChanged = True
-        individuals = self.getIndividuals(sorted=True)
-        self.best_fitness = individuals[0].fitness
-        self.best_code = individuals[0].code
-            
-        sum_average_fitness = 0
-        sum_average_program_steps = 0
-        sum_average_memory_usage = 0
-        sum_average_inputbuffer_usage = 0
-        sum_average_execution_time = 0
-        
-        l = len(individuals)
-        
-        if l > 0:   
-            fitcnt = 0
-            for i in individuals:
-                if i.fitness != None:
-                    sum_average_fitness += i.fitness
-                    fitcnt += 1
-                sum_average_program_steps += i.average_program_steps 
-                sum_average_memory_usage += i.average_memory_usage 
-                sum_average_inputbuffer_usage += i.average_inputbuffer_usage 
-                sum_average_execution_time += i.average_execution_time 
-            
-            self.average_fitness = sum_average_fitness / fitcnt
-            self.average_program_steps = sum_average_program_steps / l
-            self.average_memory_usage = sum_average_memory_usage / l
-            self.average_inputbuffer_usage = sum_average_inputbuffer_usage / l
-            self.average_execution_time = sum_average_execution_time / l
-        else:
-            self.average_fitness = 0
-            self.average_program_steps = 0
-            self.average_memory_usage = 0
-            self.average_inputbuffer_usage = 0
-            self.average_execution_time = 0
-        if self.problem.sync_to_database == True:
-            self.save()
-     
-    def save(self):
-        #print("Save on Population for problem %s" % self.problem)
-        if self.individual_cache != None:
-            for i in self.individual_cache:
-                i.save()
-        if self.wasChanged == True or self.id == None:
-            super(type(self), self).save()
-            self.wasChanged = False
+    def getTimespendSeconds(self):
+        return int(self.timespend/1000000)
         
     def __str__(self):
-        return "Population: %s" % self.id
-    
-    
+        return "Population: %s for species %s, BestFitness: %s" % (self.id, self.species.name, self.best_individual_fitness)
         
+    def stats(self):
+        individuals_count = self.individuals.count()
+        individuals = self.individuals.all()
+        if individuals_count == 0:
+            return 0
+        return {
+            "avg_code_size" :           sum([x.code_size                    for x in individuals]) / individuals_count, 
+            "avg_memory_size" :         sum([x.memory_size                  for x in individuals]) / individuals_count , # permanent memory
+            "avg_fitness" :             sum([x.fitness                      for x in individuals]) / individuals_count , 
+            "max_fitness" :             max([x.fitness                      for x in individuals]) , 
+            "avg_fitness_evaluations" : sum([x.fitness_evaluations          for x in individuals]) / individuals_count , 
+            "avg_executions" :          sum([x.executions                   for x in individuals]) / individuals_count , 
+            "avg_program_steps" :       sum([x.get_program_steps_avg()      for x in individuals]) / individuals_count , 
+            "avg_memory_usage" :        sum([x.get_memory_usage_avg()       for x in individuals]) / individuals_count , 
+            "avg_execution_time" :      sum([x.get_execution_time_avg()  for x in individuals]) / individuals_count , 
+        }
+
+    def to_redis(self):
+        pipe = redisconnection.pipeline()
+        for param in [
+            "best_individual_id",
+            "best_individual_fitness",
+            "individuals_created",
+            "timespend",
+            "timespend_total",
+            "fitness_relative",
+            "fitness_evaluations",
+            "fitness_evaluations_total",
+            ]:
+            key = "population.%s.%s" % (self.id, param)
+            value = getattr(self, param)
+            pipe.set(key, value)
+        
+        for individual in self.individuals.all():
+            individual.to_redis()
+            pipe.zadd("population.%s.individuals.allByFitness"   %  self.id, individual.fitness, individual.id)
+            pipe.zadd("population.%s.individuals.allByTimespend" %  self.id, individual.execution_time, individual.id)
+            if individual.fitness_evaluations >= self.species.min_fitness_evaluations and individual.fitness > 0:
+                pipe.zadd('population.%s.individuals.adultsByFitness' % self.id, individual.fitness, individual.id  ) 
+            pipe.zadd('population.%s.individuals.allByFitnessEvaluations' % self.id, individual.fitness_evaluations, individual.id  ) 
+        pipe.execute()
+           
+    def from_redis(self ):
+        #print("1: %s" % time.time())
+        try:
+            best_individual_id = int(redisconnection.get("population.%s.best_individual_id" % self.id))
+            best_individual_fitness = float(redisconnection.get("population.%s.best_individual_fitness" % self.id))
+        except:
+            best_individual_id = ""
+            best_individual_fitness = 0
+        #print("from_redis %s " % self.id)
+        self.best_individual_id = best_individual_id
+        self.best_individual_fitness = best_individual_fitness
+        self.individuals_created = int(redisconnection.get("population.%s.individuals_created" % self.id))
+        #self.timespend = int(redisconnection.get("population.%s.timespend" % self.id))
+        self.timespend_total = int(redisconnection.get("population.%s.timespend_total" % self.id))
+        self.fitness_relative = float(redisconnection.get("population.%s.fitness_relative" % self.id))
+        #self.fitness_evaluations = int(redisconnection.get("population.%s.fitness_evaluations" % self.id))
+        self.fitness_evaluations_total = int(redisconnection.get("population.%s.fitness_evaluations_total" % self.id))
+        
+        individual_ids =[int(float(x)) for x in redisconnection.zrange("population.%s.individuals.allByFitness" % self.id, 0, -1)]
+        individuals = []
+        #print("2: %s" % time.time())
+        #print("s: %s" % time.time())
+        
+        for individual_id in individual_ids:
+            individual, created  = Individual.objects.get_or_create(id=individual_id,population=self)
+            success = individual.from_redis(self.id, individual_id)
+            if success == True:
+                individuals.append(individual)
+        #print("3: %s" % time.time())                
+        #print("e: %s" % time.time())                
+        with transaction.atomic():    
+            for individual in individuals:
+                individual.save()
+                
+        self.timespend = sum([i.execution_time for i in individuals])
+        self.fitness_evaluations = sum([i.fitness_evaluations for i in individuals])
+        self.save()      
+        #print("4: %s" % time.time())
+        todel = []
+        for individual_id in Individual.objects.filter(population=self.id).values_list('id', flat=True):
+            if individual_id not in individual_ids:  
+                todel.append(individual_id)
+        #print("5: %s" % time.time())                
+        Individual.objects.filter(Q(id__in = todel) & Q(population=self.id)).delete()
+        #print("6: %s" % time.time())
+        #print("%s removed" % len(todel))  
+  
+ 
+  
+    @staticmethod
+    def clear_redis(population_id): 
+        print("clearing pop %s from redis" % population_id)
+        pipe = redisconnection.pipeline()
+        for param in [
+            "best_individual_id",
+            "best_individual_fitness",
+            "individuals_created",
+            "timespend",
+            "timespend_total",
+            "fitness_relative",
+            "fitness_evaluations",
+            "fitness_evaluations_total",
+            ]:
+            pipe.delete("population.%s.%s" % (population_id, param))
+        pipe.execute()
+        
+        individual_ids = redisconnection.zrange("population.%s.individuals.allByFitness" % population_id, 0, -1)
+        individual_ids = [ int(float(x)) for x in individual_ids ]
+        for individual_id in individual_ids:
+            Individual.clear_redis(individual_id)
+            
+        redisconnection.delete("population.%s.individuals.allByFitness" % population_id)
+        redisconnection.delete("population.%s.individuals.allByTimespend" % population_id)
+        redisconnection.delete("population.%s.individuals.allByFitnessEvaluations" % population_id)
+        redisconnection.delete("population.%s.individuals.adultsByFitness" % population_id)
+    
+   
 class Individual(models.Model):
-    id       = models.AutoField(primary_key=True)
-    created  = models.DateTimeField('created',auto_now_add=True)
-    updated  = models.DateTimeField('updated',auto_now=True)  
-    population = models.ForeignKey(Population, on_delete=models.CASCADE, related_name='individuals')
+    id       = models.BigAutoField(primary_key=True)
+    created  = models.DateTimeField('created', auto_now_add=True)
+    updated  = models.DateTimeField('updated', auto_now=True)  
+    population = models.ForeignKey(Population, on_delete=models.CASCADE, related_name='individuals',db_index=True)
 
-    code     = models.CharField( max_length=200000,default=".")
-    code_length =  models.FloatField(default = 10)
+    compiler      = models.CharField( max_length=100, default="")
+    matemutator = models.CharField( max_length=100, default="")
+    
+    code          = models.TextField( max_length=10*1000*1000, default=".")
+    code_compiled = models.TextField( max_length=10*1000*1000, default=".")
+    code_size =  models.BigIntegerField(default = 0)
+    memory        = models.TextField( max_length=10*1000*1000, default="")
+    memory_size =  models.BigIntegerField(default = 0)
 
-    execution_counter = models.FloatField(default = 0) # nr of executions of this code version
-    
-    fitness =  models.FloatField(default = None,blank=True,null=True)
-    fitness_sum =  models.FloatField(default = 0)
-    fitness_evalcount =  models.FloatField(default = 0)
-    
-    program_steps = models.FloatField(default = 0) # nr of executions of this code version
-    memory_usage = models.FloatField(default = 0) # nr of executions of this code version
-    inputbuffer_usage = models.FloatField(default = 0) # 0 to 1 percent of input bytes used
-    execution_time = models.FloatField(default = 0) # total execution time
-    output_size = models.FloatField(default = 0) # total execution time
-    input_size = models.FloatField(default = 0) # total execution time
-    
-    average_program_steps = models.FloatField(default = 0) 
-    average_memory_usage = models.FloatField(default = 0) 
-    average_inputbuffer_usage = models.FloatField(default = 0) 
-    average_execution_time = models.FloatField(default = 0) 
-    average_output_size = models.FloatField(default = 0) 
-    average_input_size = models.FloatField(default = 0) 
-    
-    example_input = models.CharField( max_length=200000,default="")
-    example_output = models.CharField( max_length=200000,default="")
-    
-    parent_fitness =  models.FloatField(default = None,blank=True,null=True) # in case of crossover, set this to max parent fitness, used to track crossover quality
-    
-    def __init__(self,*args,**kwargs):
-        self.wasChanged = False
-        super(type(self), self).__init__(*args,**kwargs)
-
+    fitness =  models.FloatField(default = 0)
+    fitness_sum = models.FloatField(default = 0)
+    fitness_relative_all =  models.FloatField(default = 0)
+    fitness_relative_adult =  models.FloatField(default = 0)
+    fitness_evaluations =  models.BigIntegerField(default = 0)
+    executions = models.BigIntegerField(default = 0) 
+    program_steps = models.BigIntegerField(default = 0)     
+    memory_usage = models.BigIntegerField(default = 0)    
+    execution_time = models.FloatField(default = 0)   
     
     class Meta:
-        ordering = ["-fitness", "-average_inputbuffer_usage","code_length","average_execution_time"]
-        
-    def addFitness(self, value, evaluations = 1):
-        self.wasChanged = True
-        self.fitness_sum += value
-        self.fitness_evalcount += evaluations
-        self.fitness = self.fitness_sum / self.fitness_evalcount
-        if self.population.problem.sync_to_database == True:
-            #print("Individual.addFitness")
-            self.save()
-      
-    def execute(self, input):
-        #print("execute ind")
-        brainfuckCinstance.load(code = self.code, max_steps = self.population.max_steps, max_memory = 100000, clear_memory = True, output_memory = False, preload_memory = "")
-        result = brainfuckCinstance.run(input, clear_memory = True)
-        #print(input)
-        #print(result.output)
-        
-        #ExecutionResult = namedtuple('ExecutionResult',[
-        #    "program_steps", 
-        #    "memory_usage",
-        #    "inputbuffer_usage",
-        #    "output_size",
-        #    "output",
-        #    "memory_size",
-        #    "memory",
-        #    "execution_time",
-        #])
-        
-        inputlength = len(input)
-        self.execution_counter += 1
-        if self.example_input == "" or self.example_output == "" or self.execution_counter % 50 == 0:
-            self.example_input = input
-            self.example_output = result.output
-            
-        
-        self.program_steps += result.program_steps
-        self.memory_usage += result.memory_usage
-        if inputlength == 0:
-            self.inputbuffer_usage = 1
-        else:
-            self.inputbuffer_usage += ((1.0 / inputlength ) * result.inputbuffer_usage)
-        self.execution_time += result.execution_time
-        self.input_size += inputlength
-        self.output_size += result.output_size
-        #print(self.input_size, self.execution_counter, (self.input_size  / self.execution_counter))
-        
-        self.average_program_steps = self.program_steps / self.execution_counter
-        self.average_memory_usage =  self.memory_usage / self.execution_counter
-        self.average_inputbuffer_usage = self.inputbuffer_usage / self.execution_counter
-        self.average_execution_time =  self.execution_time / self.execution_counter
-        self.average_input_size =  self.input_size / self.execution_counter
-        self.average_output_size =  self.output_size / self.execution_counter
-        
-        self.wasChanged = True
-        return result
-        
-    def setCode(self, newcode): 
-        self.wasChanged = True    
-        if newcode == self.code:
-            #print("dont set same code")
-            return False
-        self.code = newcode
-        self.code_length = len(newcode)
-        self.reset()
-        return True
-        
-    def reset(self):
-        self.wasChanged = True    
-        self.fitness_sum = 0
-        self.fitness_evalcount = 0
-        self.fitness = None
-        self.execution_counter = 0
-        #print("reset")
-        #for line in traceback.format_stack():
-        #    print(line.strip())
-        
-        self.program_steps = 0
-        self.memory_usage = 0
-        self.inputbuffer_usage = 0
-        self.execution_time = 0
-        self.input_size = 0
-        self.output_size = 0
-        
-        self.average_program_steps = 0
-        self.average_memory_usage = 0
-        self.average_inputbuffer_usage = 0
-        self.average_execution_time = 0
-        self.average_input_size = 0
-        self.average_output_size = 0
-        if self.population.problem.sync_to_database == True:
-            self.save()        
-        
-        
-    def save(self):
-        if self.wasChanged == True or self.id == None:
-            self.wasChanged = False
-            #print("save")
-            #traceback.print_stack()
-            super(type(self), self).save()
-        #else:
-        #    print("Individual.save not")
-            #traceback.print_stack()
-        
+        ordering = ["-fitness"]
+   
     def __str__(self):
-        return "Problem: %s Population: %s Individual: %s Fitness: %s  '%s'" % (self.population.problem.name,self.population.id,self.id,self.fitness, self.code)
-            
+        return "Species: %s Population: %s Individual: %s Fitness: %s  " % (self.population.species.name,self.population.id,self.id,self.fitness)
+
+    def get_program_steps_avg(self):
+        if self.executions > 0:
+            return self.program_steps / self.executions
+        else:
+            return 0
+    def get_memory_usage_avg(self):
+        if self.executions > 0:
+            return self.memory_usage / self.executions
+        else:
+            return 0
+    def get_execution_time_avg(self):
+        if self.executions > 0:
+            return (self.execution_time / self.executions)
+        else:
+            return 0
+    
+    def _encode_binary(self, binary):
+        return binascii.b2a_qp(bytes(binary),istext=False).decode().replace("=\n","")
+        
+    def _decode_binary(self, ascii):
+        return binascii.a2b_qp(ascii)
+
+    def to_redis(self):
+        pipe = redisconnection.pipeline()
+        pipe.set("individual.%s.species" % self.id, self.population.species.id)
+        pipe.set("individual.%s.population" % self.id, self.population.id)
+        pipe.set("individual.%s.alive" % self.id, 1)
+        
+        pipe.set("individual.%s.memory"          %  self.id, self._decode_binary(self.memory))
+        pipe.set("individual.%s.code" % self.id, self._decode_binary(self.code))
+        if self.code_compiled != "":
+            pipe.set("individual.%s.code_compiled"   %  self.id, self._decode_binary(self.code_compiled))
+        
+        for param in [
+            "compiler",
+            "matemutator",
+            "fitness",
+            "fitness_sum",
+            "fitness_relative_all",
+            "fitness_relative_adult",
+            "fitness_evaluations",
+            "executions",
+            "program_steps",
+            "memory_usage",
+            "execution_time",
+            ]:
+            key = "individual.%s.%s" % (self.id, param)
+            value = getattr(self, param)
+            pipe.set(key, value)
+        pipe.execute()
+    
+    def from_redis(self, population_id, individual_id):
+        self.population_id = population_id
+        self.id = individual_id
+        
+        params = [
+            ["fitness", "float"],
+            ["fitness_sum", "float"],
+            ["fitness_relative_all", "float"],
+            ["fitness_relative_adult", "float"],
+            ["execution_time", "float"],
+            ["fitness_evaluations", "int"],
+            ["executions", "int"],
+            ["program_steps", "int"],
+            ["memory_usage", "int"],
+            ["compiler", "individualid"],
+            ["matemutator", "individualid"],
+            ["code", "bin"],
+            ["code_compiled", "bin"],
+            ["memory", "bin"],
+        ]
+        
+        pipe = redisconnection.pipeline()
+        for param in params:
+            pipe.get("individual.%s.%s" % (self.id, param[0]))
+        results = pipe.execute()
+        for index, param in enumerate(params):
+            value = results[index]
+            if param[1] == "int":
+                value = int(value) if value != None else 0
+            if param[1] == "float":
+                value = float(value) if value != None else 0
+            if param[1] == "individualid":
+                value = value.decode("ASCII") if value != None and value != b'' else ""
+            if param[1] == "bin":
+                value = self._encode_binary(value) if value != None else ""
+            setattr(self, param[0], value)    
+        
+        self.memory_size = len(self.memory)                      
+        self.code_size = len(self.code)                      
+        self.created = timezone.now()
+        return redisconnection.exists("individual.%s.alive" % individual_id)  # if not exists return false, because ind died
+    
+    @staticmethod
+    def clear_redis(individual_id): 
+        pipe = redisconnection.pipeline()
+        for param in [
+            "species",
+            "population",
+            "alive",
+            "memory",
+            "code",
+            "code_compiled",
+            "compiler",
+            "matemutator",
+            "fitness",
+            "fitness_sum",
+            "fitness_relative_all",
+            "fitness_relative_adult",
+            "fitness_evaluations",
+            "executions",
+            "program_steps",
+            "memory_usage",
+            "execution_time",
+            ]:
+            pipe.delete("individual.%s.%s" % (individual_id, param))
+        pipe.execute()
+       
+    
 class ReferenceFunction(models.Model):
-    id       = models.AutoField(primary_key=True)
+    id       = models.BigAutoField(primary_key=True)
     created  = models.DateTimeField('created',auto_now_add=True)
     updated  = models.DateTimeField('updated',auto_now=True)  
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name='referencefunctions')
-
-    name     = models.CharField( max_length=200,default="", unique=True)
-    program_steps = models.FloatField(default = 0) # nr of executions of this code version
-
-    fitness =  models.FloatField(default = None,blank=True,null=True)
-    fitness_sum =  models.FloatField(default = 0)
-    fitness_evalcount =  models.FloatField(default = 0)
-    execution_counter = models.FloatField(default = 0)
-    execution_time = models.FloatField(default = 0) # total execution time
+    name     = models.CharField( max_length=200, default="", unique=True)
+        
+    fitness =  models.FloatField(default = 0)
+    fitness_sum = models.FloatField(default = 0)
+    fitness_evaluations =  models.BigIntegerField(default = 0)
+    executions = models.BigIntegerField(default = 0) 
+    execution_time = models.FloatField(default = 0)   
     
-    output_size = models.FloatField(default = 0) # total execution time
-    input_size = models.FloatField(default = 0) # total execution time
-
-    average_output_size = models.FloatField(default = 0) 
-    average_input_size = models.FloatField(default = 0) 
-    average_execution_time = models.FloatField(default = 0) 
-
     function = None # function supplyed externally in problem init
     
     class Meta:
         ordering = ["-fitness"]
-    
-    def __init__(self,*args,**kwargs):
-        self.wasChanged = False
-        super(type(self), self).__init__(*args,**kwargs)
-
-    
-    def addFitness(self, value, evaluations = 1):
-        self.wasChanged = True  
-        self.fitness_sum += value
-        self.fitness_evalcount += evaluations
-        self.fitness = self.fitness_sum / self.fitness_evalcount
-        
-    def reset(self):
-        print("ReferenceFunction.reset")
-        self.wasChanged = True    
-        self.fitness_sum = 0
-        self.fitness_evalcount = 0
-        self.fitness = None
-        self.execution_counter = 0
-        
-        self.program_steps = 0
-        self.execution_time = 0
-        self.average_execution_time = 0
-        self.average_input_size = 0
-        self.average_output_size = 0
-        if self.problem.sync_to_database == True:
-            self.save()        
-        
-    def save(self):
-        if self.wasChanged == True or self.id == None:
-            #print("reference function saved")
-            self.wasChanged = False
-            #if REFRESH_REFERENCE_FUNCTION_FROM_DB == True or self.id == None:
-            super(type(self), self).save()
-            
-        
-    def execute(self,input):   
-        #print("execute ref")  
-        self.wasChanged = True  
-        self.input_size += len(input)
-        
-        start = time.time()
-        r = self.function(input) 
-        self.execution_time += ((time.time() - start)  * 1000000.0)
-        
-        self.execution_counter += 1 
-              
-        self.output_size += len(r)
-        self.average_execution_time = (self.execution_time / self.execution_counter) 
-        self.average_input_size =  self.input_size / self.execution_counter
-        self.average_output_size =  self.output_size / self.execution_counter
-                
-        return r
+   
     def __str__(self):
         return "ReferenceFunction: %s" % self.name
+
+    def reset(self): 
+        pipe = redisconnection.pipeline()
+        for param in [
+            "fitness",
+            "fitness_sum",
+            "fitness_evaluations",
+            "executions",
+            "execution_time",
+            ]:
+            pipe.set("referenceFunction.%s.%s" % (self.id, param),0)
+            setattr(self, param, 0)  
+        self.save()
+        pipe.execute()
+        
+    def to_redis(self):
+        pipe = redisconnection.pipeline()
+        pipe.set("referenceFunction.%s.name" % self.id, self.name)
+        pipe.set("referenceFunction.%s.fitness" % self.id, self.fitness)
+        pipe.set("referenceFunction.%s.fitness_sum" % self.id, self.fitness_sum)
+        pipe.set("referenceFunction.%s.fitness_evaluations" % self.id, self.fitness_evaluations)
+        pipe.set("referenceFunction.%s.executions" % self.id, self.executions)
+        pipe.set("referenceFunction.%s.execution_time" % self.id, self.execution_time)
+        pipe.execute()
     
+    def from_redis(self):
+        params = [
+            ["fitness", "float"],
+            ["fitness_sum", "float"],
+            ["fitness_evaluations", "int"],
+            ["executions", "int"],
+            ["execution_time", "float"],
+        ]
+        
+        pipe = redisconnection.pipeline()
+        for param in params:
+            pipe.get("referenceFunction.%s.%s" % (self.id, param[0]))
+        results = pipe.execute()
+        for index, param in enumerate(params):
+            value = results[index]
+            if param[1] == "int":
+                value = int(value) if value != None else 0
+            if param[1] == "float":
+                value = float(value) if value != None else 0
+            setattr(self, param[0], value)    
+        ti = time.time()
+        now = int(ti - ti%60)            
+        redisconnection.set("stats.fitness.referenceFunction.%s.%s" % ( self.id, now,  ), self.fitness )
+        redisconnection.expire("stats.fitness.referenceFunction.%s.%s" % (  self.id, now, ), 3600*72 )
+          
+        self.save()
+        
+    @staticmethod
+    def clear_redis(referenceFunction_id): 
+        pipe = redisconnection.pipeline()
+        for param in [
+            "fitness",
+            "fitness_sum",
+            "fitness_evaluations",
+            "executions",
+            "execution_time",
+            ]:
+            pipe.delete("referenceFunction.%s.%s" % (referenceFunction_id, param))
+        pipe.execute()
+          
     

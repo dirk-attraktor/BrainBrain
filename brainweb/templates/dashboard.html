@@ -1,8 +1,9 @@
 {% extends 'adminlte/base.html' %}
 
 {% block content_header %}
+   
     <section class="content-header">
-      <h1>Dashboard</h1>
+      <h1>Dashboard - </h1>
       <ol class="breadcrumb">
         <li><a href="/"><i class="fa fa-dashboard"></i> Home</a></li>
       </ol>
@@ -66,4 +67,112 @@
             </div>    
         </div>
     </div>
+    
+    
+
+    
+    <div class="row">
+        <div class="col-md-12"> 
+          <div class="box box-primary">
+            <div class="box-header with-border">
+              <h3 class="box-title">Global Stats</h3>
+
+              <div class="box-tools pull-right">
+                <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i>
+                </button>
+                <button type="button" class="btn btn-box-tool" data-widget="remove"><i class="fa fa-times"></i></button>
+              </div>
+            </div>
+            <div class="box-body">
+              <div class="chart">
+                <canvas id="populationsFitness"></canvas>
+                <script>
+                        var ctx = document.getElementById('populationsFitness').getContext('2d');
+                        //"executions", "fitness_evaluations", "death", "individuals_created", "fitness"
+                        var stats =  {{stats |safe  }};
+                        var labels = stats["labels"];
+                        var executions_per_minute = stats["executions"];
+                        var fitness_evaluations_per_minute = stats["fitness_evaluations"];
+                        var individuals_created_per_minute = stats["individuals_created"];
+                        var death_per_minute = stats["death"];
+                        var global_bestaverage_fitness = stats["fitness"];
+                        
+                        var chart = new Chart(ctx, {
+                            // The type of chart we want to create
+                            type: 'line',
+
+                            // The data for our dataset
+                            data: {
+                                //labels: ["January", "February", "March", "April", "May", "June", "July"],
+                                labels: labels,
+                                datasets: [{
+                                    label: "Executions per minute",
+                                    backgroundColor: 'rgb(255, 99, 132)',
+                                    borderColor: 'rgb(255, 99, 132)',
+                                    //data: [0, 10, 5, 2, 20, 30, 45 , ],
+                                    data: executions_per_minute,
+                                    fill : false,
+                                },
+                                {
+                                    label: "Fitness Evaluations per minute",
+                                    backgroundColor: 'rgb(23, 99, 132)',
+                                    borderColor: 'rgb(23, 99, 132)',
+                                    data: fitness_evaluations_per_minute,
+                                    fill : false,
+                                },
+                                {
+                                    label: "Death per minute",
+                                    backgroundColor: 'rgb(23, 255, 132)',
+                                    borderColor: 'rgb(23, 255, 132)',
+                                    data: death_per_minute,
+                                    fill : false,
+                                },
+                                {
+                                    label: "Individuals created per minute",
+                                    backgroundColor: 'rgb(23, 99, 23)',
+                                    borderColor: 'rgb(23, 99, 23)',
+                                    data: individuals_created_per_minute,
+                                    fill : false,
+                                     
+                                },
+                                {
+                                    label: "Average Fitness of populations bests",
+                                    backgroundColor: 'rgb(23, 1, 23)',
+                                    borderColor: 'rgb(23, 1, 23)',
+                                    data: global_bestaverage_fitness,
+                                    fill : false,
+                                     
+                                }
+                                ]
+                            },
+
+                            // Configuration options go here
+                            options: {
+                              spanGaps: true,
+                              scales: {
+                                    yAxes: [{
+                                        type: 'logarithmic',
+                                        position: 'left'
+                                    }],
+                                    xAxes: [{
+                                        type: 'time',
+                                        time: {
+                                            displayFormats: {
+                                                quarter: 'MMM YYYY'
+                                            }
+                                        }
+                                    }]
+                                }
+                            }
+                        });
+                </script>
+              </div> &
+            <!-- /.box-body -->
+          </div>
+        </div>
+        </div> <!-- /col-md-12 -->
+    </div> <!-- /row -->    
+              
+    
+    
 {% endblock %}

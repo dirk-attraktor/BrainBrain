@@ -15,10 +15,10 @@
 
 {% block content %}
     <div class="row">
-        <div class="col-md-6">
+        <div class="col-md-12">
             <div class="box">
                 <div class="box-header with-border">
-                    <h3 class="box-title">Problem Main Settings</h3>
+                    <h3 class="box-title">Problem </h3>
                 </div>
                 <!-- /.box-header -->
                 <div class="box-body">
@@ -30,52 +30,14 @@
                             <dd>{{problem.created|date:"d M. H:i" }}</dd>
                             <br>
                             
-                            <dt>Use Prior Knowledge</dt>
-                            <dd>{{problem.usePriorKnowledge }}</dd>
+                            <dt>Description</dt>
+                            <dd>{{problem.description }}</dd>
                             
-                            <dt>Use P2P</dt>
-                            <dd>{{problem.useP2P }}</dd>
-                            
-                            <dt>Sync to database</dt>
-                            <dd>{{problem.sync_to_database }}</dd>                            
                         </dl>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="col-md-6">
-            <div class="box">
-                <div class="box-header with-border">
-                    <h3 class="box-title">Problem Population defaults</h3>
-                </div>
-                <!-- /.box-header -->
-                <div class="box-body">
-                    <div class="col-md-9">
-                        <dl class="dl-horizontal">
-                            <dt>Max population size</dt>
-                            <dd>{{problem.default_max_populationsize }}</dd>
-                            <dt>Max individuals</dt>
-                            <dd>{{problem.default_max_individuals }}</dd>
-                            <dt>Max generations</dt>
-                            <dd>{{problem.default_max_generations }}</dd>
-                            
-                            <br>
-                            
-                            <dt>Min code length</dt>
-                            <dd>{{problem.default_min_code_length }}</dd>                            
-                            <dt>Max code length</dt>
-                            <dd>{{problem.default_max_code_length }}</dd>
-                            
-                            <dt>Default Max steps</dt>
-                            <dd>{{problem.default_max_steps }}</dd>
-                            
-                            <dt>Min fit. eval. per ind.</dt>
-                            <dd>{{problem.default_min_fitness_evaluation_per_individual }}</dd>
-                        </dl>
-                    </div>
-                </div>
-            </div>
-        </div>        
+        </div>   
     </div>
 
 
@@ -84,7 +46,7 @@
         <div class="col-md-12"> 
             <div class="box">
                 <div class="box-header">
-                    <h3 class="box-title">Top 10 Individuals</h3>
+                    <h3 class="box-title">Species for this problem</h3>
                 </div>
                 <div class="box-body">
                     <div id="example2_wrapper" class="dataTables_wrapper form-inline dt-bootstrap">
@@ -99,43 +61,40 @@
                                         <tr role="row">
                                         
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Id</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Population</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Execution Counter</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> name</th>
+                                            
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> usePriorKnowledge</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> useP2P</th>
+                                            
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> max_populations</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> max_populationsize</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> max_code_length</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> min_code_length</th>
+                                            
+                                            
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1">max_memory </th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> max_permanent_memory</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> max_steps</th>
 
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness Evals</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness</th>
-                                            
-                                            
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Steps</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Mem Usage</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Input Usage</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Input Size</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Output Size</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Time uS</th>
-                                            
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Code length</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Code</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for object in problem.getTopIndividuals %}
+                                                                        
+                                        {% for object in problem.species.all %}
                                             <tr>
-                                                    <td><a href="/individual/{{ object.id }}">{{ object.id }}</a></td>
-                                                    <td><a href="/population/{{ object.population.id }}">{{ object.population.id }}</a></td>
-                                                    <td>{{ object.execution_counter  |floatformat:0 }}</td>
-
-                                                    <td>{{ object.fitness_evalcount |floatformat:0  }}</td>
-                                                    <td>{{ object.fitness }}</td>
+                                                    <td><a href="/species/{{ object.id }}">{{ object.id }}</a></td>
+                                                    <td>{{ object.name }}</td>
+                                                    <td>{{ object.usePriorKnowledge }}</td>
+                                                    <td>{{ object.useP2P }}</td>
                                                     
-                                                    <td>{{ object.average_program_steps |floatformat:2 }}</td>                                                    
-                                                    <td>{{ object.average_memory_usage |floatformat:2 }}</td>
-                                                    <td>{{ object.average_inputbuffer_usage |floatformat:2 }}</td>
-                                                    <td>{{ object.average_input_size |floatformat:2 }}</td>
-                                                    <td>{{ object.average_output_size |floatformat:2 }}</td>
-                                                    <td>{{ object.average_execution_time |floatformat:2 }}</td>
+                                                    <td>{{ object.max_populations }}</td>
+                                                    <td>{{ object.max_populationsize }}</td>
+                                                    <td>{{ object.max_code_length }}</td>
+                                                    <td>{{ object.min_code_length }}</td>
                                                     
-                                                    <td>{{ object.code_length |floatformat:0 }} </td>
-                                                    <td>{{ object.code}}</td>
+                                                    <td>{{ object.max_memory }}</td>
+                                                    <td>{{ object.max_permanent_memory }}</td>
+                                                    <td>{{ object.max_steps }}</td>
                                                 <td>
                                                 </td>
                                             </tr>
@@ -150,8 +109,6 @@
             </div>            
         </div> <!-- /col-md-12 -->
     </div> <!-- /row -->
-    
-    
     
     
     <div class="row">
@@ -176,32 +133,29 @@
                                         <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Name</th>
                                         
                                         <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness</th>
+                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness Sum</th>
                                         <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness Evaluations</th>
                                         
                                         <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Execution Counter</th>
+                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Execution Time</th>
                                         
-                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg. Input Size</th>
-                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg. Output Size</th>
-                                        
-                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg. Execution Time uS</th>
                                         <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Actions</th>
                                     </tr>
                                 </thead>
+                                
                                 <tbody>
                                     {% for object in problem.referencefunctions.all %}
                                         <tr>
-                                                <td>{{ object.id }}</td>
+                                                <td><a href="/referencefunction/{{ object.id }}">{{ object.id }}</a></td>
                                                 <td>{{ object.name }}</td>
                                                 
                                                 <td>{{ object.fitness }}</td>
-                                                <td>{{ object.fitness_evalcount }}</td>
+                                                <td>{{ object.fitness_sum }}</td>
+                                                <td>{{ object.fitness_evaluations }}</td>
                                                 
-                                                <td>{{ object.execution_counter }}</td>
+                                                <td>{{ object.executions }}</td>
+                                                <td>{{ object.execution_time }}</td>
                                                 
-                                                <td>{{ object.average_input_size }}</td>
-                                                <td>{{ object.average_output_size }}</td>
-                                                
-                                                <td>{{ object.average_execution_time }}</td>
                                             <td>
                                                 <a href="/referencefunction/{{ object.id }}/reset">Reset</a>
                                             </td>

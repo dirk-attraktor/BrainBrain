@@ -1,0 +1,132 @@
+{% extends 'adminlte/base.html' %}
+{% load brainweb_tags %}
+
+{% block content_header %}
+    <section class="content-header">
+      <h1>  Show ReferenceFunction '{{referencefunction.id}}' 
+            from population  <a href="/population/{{referencefunction.population.id}}">'{{referencefunction.population.id}}'</a> 
+            for  species     <a href="/species/{{referencefunction.population.species.id}}">'{{referencefunction.population.species.name}}'</a> 
+      
+      </h1>
+      <ol class="breadcrumb">
+        <li><a href="/"><i class="fa fa-dashboard"></i> Home</a></li>
+        <li><a href="/referencefunction">referencefunction</a></li>
+        <li class="active">Show</li>
+      </ol>
+    </section>
+{% endblock %}
+
+   
+    memory_usage = models.IntegerField(default = 0)    
+    execution_time = models.FloatField(default = 0)   
+    
+{% block content %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="box">
+                <div class="box-header with-border">
+                    <h3 class="box-title">ReferenceFunction </h3>
+                </div>
+                <!-- /.box-header -->
+                <div class="box-body">
+                    <div class="col-md-9">
+                        <dl style="word-break:break-word" class="dl-horizontal">
+                            <dt>Created</dt>
+                            <dd>{{referencefunction.created|date:"d M. H:i" }}</dd>
+                            <dt>Updated</dt>
+                            <dd>{{referencefunction.created|date:"d M. H:i" }}</dd>
+                            <br>
+                            
+                            <dt>Fitness</dt>
+                            <dd>{{referencefunction.fitness }}</dd>
+                            <dt>Fitness Evaluations</dt>
+                            <dd>{{referencefunction.fitness_evaluations }}</dd>
+                            <br>
+                            
+                            <dt>Executions</dt>
+                            <dd>{{referencefunction.executions }}</dd>
+                                 
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+       
+        
+    </div>
+
+v class="row">
+        <div class="col-md-12"> 
+          <div class="box box-primary">
+            <div class="box-header with-border">
+              <h3 class="box-title">ReferenceFunction Stats</h3>
+
+              <div class="box-tools pull-right">
+                <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i>
+                </button>
+                <button type="button" class="btn btn-box-tool" data-widget="remove"><i class="fa fa-times"></i></button>
+              </div>
+            </div>
+            <div class="box-body">
+              <div class="chart">
+                <canvas id="populationsFitness"></canvas>
+                <script>
+                        var ctx = document.getElementById('populationsFitness').getContext('2d');
+                        var stats =  {{stats |safe  }};
+                        var chart = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: stats["labels"],
+                                datasets: [{
+                                    label: "Executions per minute",
+                                    backgroundColor: 'rgb(255, 99, 132)',
+                                    borderColor: 'rgb(255, 99, 132)',
+                                    data: stats["executions"],
+                                    fill : false,
+                                },
+                                {
+                                    label: "Fitness Evaluations per minute",
+                                    backgroundColor: 'rgb(23, 99, 132)',
+                                    borderColor: 'rgb(23, 99, 132)',
+                                    data: stats["fitness_evaluations"],
+                                    fill : false,
+                                },
+                                {
+                                    label: "Fitness",
+                                    backgroundColor: 'rgb(23, 1, 23)',
+                                    borderColor: 'rgb(23, 1, 23)',
+                                    data: stats["fitness"],
+                                    fill : false,
+                                     
+                                }],
+                            },
+
+                            // Configuration options go here
+                            options: {
+                              spanGaps: true,
+                              scales: {
+                                    yAxes: [{
+                                        type: 'logarithmic',
+                                        position: 'left'
+                                    }],
+                                    xAxes: [{
+                                        type: 'time',
+                                        time: {
+                                            displayFormats: {
+                                                quarter: 'MMM YYYY'
+                                            }
+                                        }
+                                    }]
+                                }
+                            }
+                        });
+                </script>
+              </div> &
+            <!-- /.box-body -->
+          </div>
+        </div>
+        </div> <!-- /col-md-12 -->
+    </div> <!-- /row -->    
+              
+
+{% endblock %}
