@@ -429,7 +429,7 @@ class EvolutionaryMethods():
             print("Mass killing worst population %s from species %s " % (worst_population_id, population.species_id))
             new_individual_ids = []
             for i in range(0, max_populationsize ):
-                for tries in range(0,10):
+                for tries in range(0,30):
                     individual_to_kill = worst_population.get_random_individual(biased=False)
                     if individual_to_kill not in new_individual_ids:
                         redis_lua_scripts.die(individual_to_kill.species_id, individual_to_kill.population_id, individual_to_kill.individual_id) #use diretct method here to not tigger afterIndividualDeath()
@@ -453,13 +453,15 @@ class EvolutionaryMethods():
             worst_population = RedisPopulation(population.species_id, worst_population_id)
             new_individual_ids = []
             for ind in inds:
-                for tries in range(0,10):
+                for tries in range(0,30):
                     individual_to_kill = worst_population.get_random_individual(biased=False)
                     if individual_to_kill not in new_individual_ids:
                         redis_lua_scripts.die(individual_to_kill.species_id, individual_to_kill.population_id, individual_to_kill.individual_id) #use diretct method here to not tigger afterIndividualDeath()
+                        print("kill non p2p ind")
                         break
                 individual_id = random.randint(1000,individual_id_range)  
-                new_individual_ids.append(individual_id)                
+                new_individual_ids.append(individual_id)       
+                print("created ind from p2p")
                 redis_lua_scripts.createIndividual( worst_population.species_id, worst_population.population_id, individual_id, "", ind["code"])
             
             
@@ -486,10 +488,11 @@ class EvolutionaryMethods():
             try:
                 individual_id = int(float(redisconnection.zrange("population.%s.individuals.allByFitness" % population.population_id, individual_index, individual_index)[0]))
                 RedisIndividual(population.species_id, population.population_id, individual_id).die()
-                nr_of_individuals = redisconnection.zcount("population.%s.individuals.allByFitness" % population.population_id,"-inf","inf")
+                
             except:
                 print("kill failed")
-                
+            nr_of_individuals = redisconnection.zcount("population.%s.individuals.allByFitness" % population.population_id,"-inf","inf")
+            
     @staticmethod     
     def create_new_individual(population):
         pipe = redisconnection.pipeline()

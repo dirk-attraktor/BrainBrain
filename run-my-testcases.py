@@ -153,7 +153,7 @@ def trainByExample(species_name, problemdefinition):
     )
     
     evolution.trainByExample(problemdefinition["examplesource"], maxsteps = DEFAULT_TRAIN_STEPS)
-    #evolution.save()
+    evolution.save()
     evolution.close()
     
 
