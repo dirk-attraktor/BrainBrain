@@ -30,7 +30,17 @@ def get_examplesource(taskname):
                 examplecache[random_index] = r
                 yield r 
     return f
-    
+   
+def examplesource_decimal2byte():
+    while True:
+        a = random.randint(0, 255)
+        yield [bytes("%s" % a,"ASCII"), bytes([a]) ]
+        
+def examplesource_byte2decimal():
+    while True:
+        a = random.randint(0, 255)
+        yield [bytes([a]) , bytes("%s" % a,"ASCII")]
+         
 def examplesource_add_2_bytes():
     while True:
         a = random.randint(0, 128)
@@ -115,6 +125,9 @@ def secret_string_2():
           
        
 task_mapping =  {
+    "my-testcase decimal2bytes": examplesource_decimal2byte,
+    "my-testcase byte2decimal": examplesource_byte2decimal,
+    
     "my-testcase find secret string 1": secret_string_1,
     "my-testcase find secret string 2": secret_string_2,
     

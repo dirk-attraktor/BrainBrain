@@ -3,6 +3,7 @@ import random
 import time
 import threading
 import json
+import uuid
 from datetime import datetime
 from datetime import datetime, timedelta
 from django.utils import timezone
@@ -28,7 +29,7 @@ p2pSuperNodeConnections = []
 
 def create_datagram_request( command, arguments = {}):
     return {
-        "id" : "%s" % random.randint(1,100000000),
+        "id" : "%s" % uuid.uuid4(),
         "type" : "request",
         "command" : command,
         "arguments" : arguments,
@@ -292,7 +293,7 @@ class p2pNode():
             p2pSuperNodeConnections.remove(p2pSuperNodeConnection)
         
     def _watchdog(self):
-        max_supernode_connections = 2
+        max_supernode_connections = 3
         
         while True:
             if len(p2pSuperNodeConnections) <  max_supernode_connections:
@@ -307,11 +308,12 @@ class p2pNode():
                         print("no peer available, bootstrap not possible")
                     else:
                         None
+            time.sleep(120)                        
             for p2pSuperNodeConnection in p2pSuperNodeConnections:
-                if p2pSuperNodeConnection.starttime + 1800 < int(time.time()): # close every hour
+                if p2pSuperNodeConnection.starttime + 3600 < int(time.time()): # close every hour
                     p2pSuperNodeConnection.close()
                     break
-            time.sleep(60)
+            
      
     def _runserver(self):
         self.server = SimpleWebSocketServer(self.superNodeIp, 4141, P2PClientConnectionHandler)

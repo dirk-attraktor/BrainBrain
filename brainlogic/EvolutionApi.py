@@ -88,7 +88,6 @@ class Evolution():
             max_permanent_memory,
             max_steps, # executed steps of code per individual 
                          
-            usePriorKnowledge = True,
             useP2P = True,
             
             warmup = False,
@@ -118,6 +117,7 @@ class Evolution():
         self.djangospecies.max_permanent_memory =  max_permanent_memory
         
         self.djangospecies.max_steps =  max_steps
+        self.djangospecies.useP2P = useP2P
         
         self.djangospecies.reference_function_rate =  reference_function_rate
        
@@ -314,8 +314,7 @@ evolutionMateMutate = Evolution(
     max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
     max_permanent_memory = 1000, # max perm memory stored in 
     max_steps = 10 * 1000 * 1000, # executed steps of code per individual 
-    usePriorKnowledge = False,
-    useP2P = False,
+    useP2P = True,
     warmup = False,
     reference_functions = [
         { "name" : "evolutionMateMutateReference" , "function" : evolutionMateMutateReference },
@@ -344,13 +343,12 @@ evolutionCompiler = Evolution(
     max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
     max_permanent_memory = 1000, # max perm memory stored in 
     max_steps = 10 * 1000 * 1000, # executed steps of code per individual 
-    usePriorKnowledge = False,
-    useP2P = False,
+    useP2P = True,
     warmup = False,
     reference_functions = [
         { "name" : "evolutionCompilerReference" , "function" : evolutionCompilerReference },
     ],
-    reference_function_rate = 1,
+    reference_function_rate = 0.8,
 )     
             
 class EvolutionaryMethods():
@@ -440,29 +438,32 @@ class EvolutionaryMethods():
                 new_individual_ids.append(new_individual_id)
                 
         if species_individuals_created % (1*1000*1000) == 0:   # on every x th ind created in species kill/recreate worst population from p2p 
-            max_populationsize = int(redisconnection.get("species.%s.max_populationsize" % population.species_id))
-            problem_names = [n for n in Species.objects.get(id = population.species_id).problems.all().values_list('name', flat=True)]
-            problem_names = random.sample(problem_names, min([len(problem_names), 5]))
-            requests = min([int(max_populationsize / 2 / len(problem_names) / 5), 20])
-            inds = []
-            for problem_name in problem_names:
-                inds.extend(brainP2Pclient.getIndividuals( problem_name, requests = requests, limit_per_node = 5))
-            print("%s individuals received from p2p " % len(inds))
-            
-            worst_population_id = int(redisconnection.zrange("species.%s.populations.byBestFitness" % population.species_id, 0, 0)[0])
-            worst_population = RedisPopulation(population.species_id, worst_population_id)
-            new_individual_ids = []
-            for ind in inds:
-                for tries in range(0,30):
-                    individual_to_kill = worst_population.get_random_individual(biased=False)
-                    if individual_to_kill not in new_individual_ids:
-                        redis_lua_scripts.die(individual_to_kill.species_id, individual_to_kill.population_id, individual_to_kill.individual_id) #use diretct method here to not tigger afterIndividualDeath()
-                        print("kill non p2p ind")
-                        break
-                individual_id = random.randint(1000,individual_id_range)  
-                new_individual_ids.append(individual_id)       
-                print("created ind from p2p")
-                redis_lua_scripts.createIndividual( worst_population.species_id, worst_population.population_id, individual_id, "", ind["code"])
+            species = Species.objects.get(id = population.species_id)
+            if species.useP2P == True:
+                max_populationsize = int(redisconnection.get("species.%s.max_populationsize" % population.species_id))
+                problem_names = [n for n in species.problems.all().values_list('name', flat=True)]
+                problem_names = random.sample(problem_names, min([len(problem_names), 5]))
+                requests = min([int(max_populationsize / 2 / len(problem_names) / 5), 20])
+                inds = []
+                for problem_name in problem_names:
+                    p2p_inds = brainP2Pclient.getIndividuals( problem_name, requests = requests, limit_per_node = 5)
+                    inds.extend( p2p_inds)
+                print("%s individuals received from p2p " % len(inds))
+                
+                worst_population_id = int(redisconnection.zrange("species.%s.populations.byBestFitness" % population.species_id, 0, 0)[0])
+                worst_population = RedisPopulation(population.species_id, worst_population_id)
+                new_individual_ids = []
+                for ind in inds:
+                    for tries in range(0,30):
+                        individual_to_kill = worst_population.get_random_individual(biased=False)
+                        if individual_to_kill not in new_individual_ids:
+                            redis_lua_scripts.die(individual_to_kill.species_id, individual_to_kill.population_id, individual_to_kill.individual_id) #use diretct method here to not tigger afterIndividualDeath()
+                            print("kill non p2p ind")
+                            break
+                    individual_id = random.randint(1000,individual_id_range)  
+                    new_individual_ids.append(individual_id)       
+                    print("created ind from p2p")
+                    redis_lua_scripts.createIndividual( worst_population.species_id, worst_population.population_id, individual_id, "", ind["code"])
             
             
     @staticmethod

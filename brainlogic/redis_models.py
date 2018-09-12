@@ -221,8 +221,10 @@ class RedisPopulation():
         elif nr_of_individuals < min_populationsize:
             evolutionaryMethods.onPopulationsizeUnderflow(self)
     
+# bytes -> <e bf_compiler> -> bf_c -> <c bf execute>
+#                                  -> <c bf_2_c_2_webasm> -> webasmbytecode -> <c webasm execute>
+#       -> <e webasm_compiler>                            -> webasmbytecode -> <c webasm execute>
 
-                
 class RedisIndividual():    
     def __init__(self, species_id = None, population_id = None, individual_id = None):
         if species_id == None:

@@ -67,7 +67,6 @@ class Species(models.Model ):
     name     = models.CharField( max_length=200,default="", unique=True)
     problems = models.ManyToManyField(Problem, related_name='species',db_index=True)
     
-    usePriorKnowledge = models.BooleanField(default=False)
     useP2P = models.BooleanField(default=False)
 
     max_populations =  models.BigIntegerField(default = 10)  # max number of parallel populations

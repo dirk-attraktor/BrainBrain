@@ -39,8 +39,7 @@ def trainMutation(species_name, problemdefinition):
         max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
         max_permanent_memory = 1000, # max perm memory stored in             
         max_steps = 10 * 1000 * 1000, # executed steps of code per individual 
-        usePriorKnowledge = False,
-        useP2P = False,
+        useP2P = True,
         warmup = False,
     )
 
@@ -74,8 +73,7 @@ def trainMate(species_name, problemdefinition):
         max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
         max_permanent_memory = 1000, # max perm memory stored in             
         max_steps = 10 * 1000 * 1000, # executed steps of code per individual 
-        usePriorKnowledge = False,
-        useP2P = False,
+        useP2P = True,
         warmup = False,
     )
 
@@ -116,8 +114,7 @@ def trainSelfAware(species_name, problemdefinition):
         max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
         max_permanent_memory = 1000, # max perm memory stored in             
         max_steps = 10 * 1000 * 1000, # executed steps of code per individual 
-        usePriorKnowledge = False,
-        useP2P = False,
+        useP2P = True,
         warmup = False,
     )
 
@@ -147,8 +144,7 @@ def trainByExample(species_name, problemdefinition):
         max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
         max_permanent_memory = 1000, # max perm memory stored in             
         max_steps = 10 * 1000 * 1000, # executed steps of code per individual 
-        usePriorKnowledge = False,
-        useP2P = False,
+        useP2P = True,
         warmup = False,
     )
     
@@ -175,8 +171,7 @@ class GymTrainer():
             max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
             max_permanent_memory = 1000, # max perm memory stored in             
             max_steps = 10 * 1000 * 1000, # executed steps of code per individual 
-            usePriorKnowledge = False,
-            useP2P = False,
+            useP2P = True,
             warmup = problemdefinition["warmup"],
         )
         @gymvolution.replace
