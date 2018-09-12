@@ -50,7 +50,7 @@ def examplesource_add_3_integer_bson():
         a = random.randint(0, 1000000000)
         b = random.randint(0, 1000000000)
         c = random.randint(0, 1000000000)
-        d = a + b
+        d = a + b + c 
         yield [bson.dumps({0:a, 1:b, 2:c}) , bson.dumps({0:d})]
     
   
@@ -117,15 +117,21 @@ def secret_string_2():
 task_mapping =  {
     "my-testcase find secret string 1": secret_string_1,
     "my-testcase find secret string 2": secret_string_2,
+    
     "my-testcase add 2 bytes": examplesource_add_2_bytes,
     "my-testcase sub 2 bytes": examplesource_sub_2_bytes,
+    
     "my-testcase add 2 integer bson": examplesource_add_2_integer_bson,
-    "my-testcase add 3 integer bson": examplesource_add_3_integer_bson,
     "my-testcase sub 2 integer bson": examplesource_sub_2_integer_bson,
+    
+    "my-testcase add 3 integer bson": examplesource_add_3_integer_bson,
+    
     "my-testcase add 2 integer": examplesource_add_2_integer,
     "my-testcase sub 2 integer": examplesource_sub_2_integer,
+    
     "my-testcase add 2 float": examplesource_add_2_float,
     "my-testcase sub 2 float": examplesource_sub_2_float,
+    
     "my-testcase split_string_on_delimiter": split_string_on_delimiter,
 }
     

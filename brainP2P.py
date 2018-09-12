@@ -28,7 +28,7 @@ p2pSuperNodeConnections = []
 
 def create_datagram_request( command, arguments = {}):
     return {
-        "id" : random.randint(1,100000000),
+        "id" : "%s" % random.randint(1,100000000),
         "type" : "request",
         "command" : command,
         "arguments" : arguments,
@@ -91,13 +91,13 @@ class P2PClientConnectionHandler(WebSocket):
         if len(clients ) > 0:
             client = random.choice(clients)
             request = create_datagram_request("getIndividuals", { "problem_name": p2pdatagram["arguments"]["problem_name"], "limit": p2pdatagram["arguments"]["limit"]})
-            redisconnection.set("P2PClientConnectionHandler Callback: %s sourceclientid"     % request["id"], self.id)
+            redisconnection.set("P2PClientConnectionHandler Callback: %s sourceclientid"     % request["id"], self.cid)
             redisconnection.set("P2PClientConnectionHandler Callback: %s sourcerequestid"    % request["id"], p2pdatagram["id"])
             redisconnection.expire("P2PClientConnectionHandler Callback: %s sourceclientid"  % request["id"] ,180)
             redisconnection.expire("P2PClientConnectionHandler Callback: %s sourcerequestid" % request["id"] ,180)
             client.sendMessage(json.dumps(request))
             
-            print("getIndividuals request from %s forwarded to %s with id %s" % (self.id, client.id, request["id"]))
+            print("getIndividuals request from %s forwarded to %s with id %s" % (self.cid, client.cid, request["id"]))
         else:
             print("no clients found for problem %s" % p2pdatagram["arguments"]["problem_name"])
             self.sendMessage(json.dumps(create_datagram_response(p2pdatagram["id"], "getIndividuals", {"individuals" : []})))
@@ -114,11 +114,12 @@ class P2PClientConnectionHandler(WebSocket):
         try:
             source_client_id  = redisconnection.get("P2PClientConnectionHandler Callback: %s sourceclientid"  % p2pdatagram["id"]).decode("ASCII")
             source_request_id = redisconnection.get("P2PClientConnectionHandler Callback: %s sourcerequestid" % p2pdatagram["id"]).decode("ASCII")
-            sourceClient = [c for c in p2pClientConnectionHandlers if c.id == source_client_id][0]
+            sourceClient = [c for c in p2pClientConnectionHandlers if c.cid == source_client_id][0]
         except Exception as e:
             print("failed to get source client : %s" % e)
+            print(p2pdatagram)
             return 
-        print("getIndividuals response from %s forwarded to %s with id %s" % (self.id, sourceClient.id, source_request_id))
+        print("getIndividuals response from %s forwarded to %s with id %s" % (self.cid, sourceClient.cid, source_request_id))
         try:
             sourceClient.sendMessage(json.dumps(create_datagram_response(source_request_id, "getIndividuals", {"individuals" : p2pdatagram["arguments"]["individuals"] })))
         except Exception as e:
@@ -128,7 +129,7 @@ class P2PClientConnectionHandler(WebSocket):
         try:
             print(self.address, 'client "%s" connected to supernode' % self.address[0])
             self.knownProblems = []
-            self.id = "%s_%s" % (self.address[0],self.address[1])
+            self.cid = "%s_%s" % (self.address[0], self.address[1])
             p2pClientConnectionHandlers.append(self)
         except Exception as e:
             print("handleConnected failed %s" % e)

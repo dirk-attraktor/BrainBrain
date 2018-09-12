@@ -39,7 +39,7 @@ class BrainP2Pclient():
         
         for i in range(0,requests):
             request = {
-                "id" : random.randint(1,100000000),
+                "id" : "%s" % random.randint(1,100000000),
                 "type" : "request",
                 "command" : "getIndividuals",
                 "arguments" : { "problem_name": problem_name, "limit": limit_per_node},

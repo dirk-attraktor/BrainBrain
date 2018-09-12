@@ -91,14 +91,6 @@ DATABASES = {
     }
 }
 
-from django.db import connection
-cursor = connection.cursor()
-cursor.execute("PRAGMA journal_mode=wal;")
-cursor.execute("PRAGMA main.synchronous=OFF;")
-#cursor.execute("PRAGMA main.journal_mode= MEMORY;")
-#cursor.execute('PRAGMA main.temp_store  = MEMORY;')
-
-
 '''
 DATABASES = {
     'default': {

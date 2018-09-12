@@ -153,7 +153,7 @@ def trainByExample(species_name, problemdefinition):
     )
     
     evolution.trainByExample(problemdefinition["examplesource"], maxsteps = DEFAULT_TRAIN_STEPS)
-    evolution.save()
+    #evolution.save()
     evolution.close()
     
 
@@ -551,7 +551,11 @@ def training_thread(nrOfTrainingRuns):
         print("selected_problem: %s" % selected_problem)
         run_training_problem(selected_problem)
         nrOfTrainingRuns -= 1
-   
+        
+def profile():
+    selected_problem = random.choice(training_problems)
+    run_training_problem(selected_problem)
+    
 def main():
        
     nrofThreads = 1
@@ -574,4 +578,4 @@ def main():
 main()       
 #import cProfile
 #import re
-#cProfile.run('main()')
+#cProfile.run('profile()')
