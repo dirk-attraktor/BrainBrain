@@ -566,11 +566,14 @@ def main():
         None
     print("Starting %s threads a %s runs" % (nrofThreads, nrOfTrainingRuns))
     time.sleep(3)
+    ts = []
     for _ in range(0,nrofThreads):
         time.sleep(3)
         t = threading.Thread(target=training_thread,args = [nrOfTrainingRuns])
         t.start()   
-        
+        ts.append(t)
+    for t in ts:
+        t.join()
 main()    
 
 #ugly hack to cleanup
