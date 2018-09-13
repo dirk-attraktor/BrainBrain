@@ -43,10 +43,18 @@ def examplesource_byte2decimal():
          
 def examplesource_add_2_bytes():
     while True:
-        a = random.randint(0, 128)
-        b = random.randint(0, 128)
+        a = random.randint(0, 127)
+        b = random.randint(0, 127)
         c = a + b
         yield [bytes([a,b]) , bytes([c])]
+        
+def examplesource_add_3_bytes():
+    while True:
+        a = random.randint(0, 80)
+        b = random.randint(0, 80)
+        c = random.randint(0, 80)
+        d = a + b  + c 
+        yield [bytes([a,b,c]) , bytes([d])]
         
 def examplesource_sub_2_bytes():
     while True:
@@ -130,6 +138,8 @@ task_mapping =  {
     
     "my-testcase find secret string 1": secret_string_1,
     "my-testcase find secret string 2": secret_string_2,
+    
+    "my-testcase add 3 bytes": examplesource_add_3_bytes,
     
     "my-testcase add 2 bytes": examplesource_add_2_bytes,
     "my-testcase sub 2 bytes": examplesource_sub_2_bytes,

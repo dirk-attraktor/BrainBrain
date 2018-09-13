@@ -8,13 +8,14 @@ class RedisLock():
         self.key = key
         
     def __enter__(self):
-        for i in range(0, 999):
+        for i in range(0, 10000):
             wasset = redisconnection.setnx("locks.%s.locked" % self.key , 23)
             if wasset == 1:
-                redisconnection.expire("locks.%s.locked" % self.key, 180)
+                redisconnection.expire("locks.%s.locked" % self.key, 240)
                 break
-            print("lock %s is locked, waiting for our turn" % self.key)
-            time.sleep(2) 
+            if i % 10 == 0:
+                print("lock %s is locked, waiting for our turn %s" % (self.key, i))
+            time.sleep(0.2) 
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):

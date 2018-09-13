@@ -67,7 +67,7 @@ class CacheController():
         print("remove_instance %s %s" % (instance_id, parent_id))
         if parent_id != None:
             redisconnection.srem("cachecontrol.instances.%s" % parent_id.decode("ASCII"), instance_id)
-            self._remove_inactive_parent( parent_id)
+            self._remove_inactive_parent( parent_id.decode("ASCII"))
         redisconnection.delete("cachecontrol.instance.%s.alive" % instance_id)
         redisconnection.delete("cachecontrol.instance.%s.parent" % instance_id)
         
@@ -119,7 +119,7 @@ class CacheController():
         
     def _watchdog(self):
         while True:
-            time.sleep(90)
+            time.sleep(600)
             self._remove_inactive_instances()
             self._remove_inactive_parents()
           
