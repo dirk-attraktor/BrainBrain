@@ -67,9 +67,9 @@ class CacheController():
         print("remove_instance %s %s" % (instance_id, parent_id))
         if parent_id != None:
             redisconnection.srem("cachecontrol.instances.%s" % parent_id.decode("ASCII"), instance_id)
+            self._remove_inactive_parent( parent_id)
         redisconnection.delete("cachecontrol.instance.%s.alive" % instance_id)
         redisconnection.delete("cachecontrol.instance.%s.parent" % instance_id)
-        self._remove_inactive_parents()        
         
     def instance_exists(self, instance_id):
         return redisconnection.exists("cachecontrol.instance.%s.alive" % instance_id)
@@ -101,20 +101,22 @@ class CacheController():
     def _remove_inactive_parents(self):
         parent_ids = self._get_parents()
         for parent_id in parent_ids:
-            #RedisLock.lock(parent_id)
-            with RedisLock(parent_id) as lock:
-                instance_ids = self._get_instances_by_parent(parent_id)
-                if len(instance_ids) == 0:
-                    print("_remove_inactive_parent %s" % parent_id)
-                    self._remove_parent(parent_id)
-                    if parent_id.startswith("RedisSpecies: "):
-                        species_id = parent_id.split(" ")[1]
-                        Species.clear_redis(species_id)
-                    if parent_id.startswith("RedisReferenceFunction: "):
-                        reference_function_id = parent_id.split(" ")[1]
-                        ReferenceFunction.clear_redis(reference_function_id)
-            #RedisLock.unlock(parent_id)
-         
+            self._remove_inactive_parent(parent_id)
+  
+    def _remove_inactive_parent(self, parent_id):
+        with RedisLock(parent_id) as lock:
+            instance_ids = self._get_instances_by_parent(parent_id)
+            if len(instance_ids) == 0:
+                print("_remove_inactive_parent %s" % parent_id)
+                self._remove_parent(parent_id)
+                if parent_id.startswith("RedisSpecies: "):
+                    species_id = parent_id.split(" ")[1]
+                    Species.clear_redis(species_id)
+                if parent_id.startswith("RedisReferenceFunction: "):
+                    reference_function_id = parent_id.split(" ")[1]
+                    ReferenceFunction.clear_redis(reference_function_id)
+        
+        
     def _watchdog(self):
         while True:
             time.sleep(90)
