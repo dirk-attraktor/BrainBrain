@@ -469,6 +469,7 @@ die_lua_script = redisconnection.register_script("""
         
         local id = 'individual.' .. individual_id
         redis.call('DEL', id .. '.alive')
+        redis.call('DEL', id .. '.matemutator')
         redis.call('DEL', id .. '.species')
         redis.call('DEL', id .. '.population')
         redis.call('DEL', id .. '.code')
@@ -484,7 +485,7 @@ die_lua_script = redisconnection.register_script("""
         redis.call('DEL', id .. '.program_steps')
         redis.call('DEL', id .. '.memory_usage')
         redis.call('DEL', id .. '.execution_time')
-        
+
         -- Calc pop best
         local nr_of_populations = redis.call('ZCOUNT', 'species.' .. species_id .. '.populations.byTimespend', '-inf', 'inf')
         local best_individual_id =  tonumber(redis.call('ZRANGE', 'population.' .. population_id .. '.individuals.adultsByFitness', -1, -1 )[1])

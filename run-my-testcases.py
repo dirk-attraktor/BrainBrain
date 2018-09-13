@@ -15,6 +15,7 @@ from libs import reward
 from braintrain import google_testcases
 from braintrain import simple_testcases
 
+import brainlogic.EvolutionApi
 from brainlogic.EvolutionApi import Evolution
 from brainlogic.EvolutionApi import EvolutionTraining
 from brainlogic.EvolutionApi import EvolutionReplacement
@@ -570,7 +571,12 @@ def main():
         t = threading.Thread(target=training_thread,args = [nrOfTrainingRuns])
         t.start()   
         
-main()       
+main()    
+
+#ugly hack to cleanup
+brainlogic.EvolutionApi.evolutionMateMutate.close()
+brainlogic.EvolutionApi.evolutionCompiler.close()
+
 #import cProfile
 #import re
 #cProfile.run('profile()')

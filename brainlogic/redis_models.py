@@ -69,7 +69,8 @@ class CacheController():
             redisconnection.srem("cachecontrol.instances.%s" % parent_id.decode("ASCII"), instance_id)
         redisconnection.delete("cachecontrol.instance.%s.alive" % instance_id)
         redisconnection.delete("cachecontrol.instance.%s.parent" % instance_id)
-            
+        self._remove_inactive_parents()        
+        
     def instance_exists(self, instance_id):
         return redisconnection.exists("cachecontrol.instance.%s.alive" % instance_id)
         
@@ -100,18 +101,19 @@ class CacheController():
     def _remove_inactive_parents(self):
         parent_ids = self._get_parents()
         for parent_id in parent_ids:
-            RedisLock.lock(parent_id)
-            instance_ids = self._get_instances_by_parent(parent_id)
-            if len(instance_ids) == 0:
-                print("_remove_inactive_parent %s" % parent_id)
-                self._remove_parent(parent_id)
-                if parent_id.startswith("RedisSpecies: "):
-                    species_id = parent_id.split(" ")[1]
-                    Species.clear_redis(species_id)
-                if parent_id.startswith("RedisReferenceFunction: "):
-                    reference_function_id = parent_id.split(" ")[1]
-                    ReferenceFunction.clear_redis(reference_function_id)
-            RedisLock.unlock(parent_id)
+            #RedisLock.lock(parent_id)
+            with RedisLock(parent_id) as lock:
+                instance_ids = self._get_instances_by_parent(parent_id)
+                if len(instance_ids) == 0:
+                    print("_remove_inactive_parent %s" % parent_id)
+                    self._remove_parent(parent_id)
+                    if parent_id.startswith("RedisSpecies: "):
+                        species_id = parent_id.split(" ")[1]
+                        Species.clear_redis(species_id)
+                    if parent_id.startswith("RedisReferenceFunction: "):
+                        reference_function_id = parent_id.split(" ")[1]
+                        ReferenceFunction.clear_redis(reference_function_id)
+            #RedisLock.unlock(parent_id)
          
     def _watchdog(self):
         while True:
@@ -132,15 +134,17 @@ class RedisSpecies():
     def load_from_django(self):
         print("species_django_to_redis %s" % self.species_id)
 
-        RedisLock.lock(self.identifier) 
-        if not cacheController.has_instances(self.identifier):
-            cacheController.add_instance( self.identifier, self.instance_id)
-            djangospecies = Species.objects.get(id=self.species_id)
-            djangospecies.to_redis()                    
-            print("species_django_to_redis %s loaded from django" % self.species_id)
-        else:
-            cacheController.add_instance( self.identifier, self.instance_id)
-        RedisLock.unlock(self.identifier) 
+        #RedisLock.lock(self.identifier) 
+        with RedisLock(self.identifier) as lock:
+
+            if not cacheController.has_instances(self.identifier):
+                cacheController.add_instance( self.identifier, self.instance_id)
+                djangospecies = Species.objects.get(id=self.species_id)
+                djangospecies.to_redis()                    
+                print("species_django_to_redis %s loaded from django" % self.species_id)
+            else:
+                cacheController.add_instance( self.identifier, self.instance_id)
+        #RedisLock.unlock(self.identifier) 
         self.isLoaded = True
         if self.keepaliveThread == None:
             self.keepaliveThread = threading.Thread(target=self._keepalive)
@@ -149,10 +153,9 @@ class RedisSpecies():
       
     def save_to_django(self):
         print("species_redis_to_django %s" % self.species_id)
-        RedisLock.lock(self.identifier) 
-        djangospecies = Species.objects.get(id=self.species_id)
-        djangospecies.from_redis()   
-        RedisLock.unlock(self.identifier)
+        with RedisLock(self.identifier) as lock:
+            djangospecies = Species.objects.get(id=self.species_id)
+            djangospecies.from_redis()   
         
         best_individual_fitnesses = Population.objects.all().values_list('best_individual_fitness', flat=True)
         avg = sum(best_individual_fitnesses) / len(best_individual_fitnesses)
@@ -345,12 +348,12 @@ class RedisReferenceFunction():
     def load_from_django(self):
         #print("referenceFunction load_from_django %s" % self.django_reference_function.id )
 
-        RedisLock.lock(self.identifier) 
-        if not cacheController.has_instances(self.identifier):
-            cacheController.add_instance( self.identifier, self.instance_id)
-            self.django_reference_function.to_redis()                    
-            #print("referenceFunction _django_to_redis %s loaded from django" % self.django_reference_function.id)
-        RedisLock.unlock(self.identifier) 
+        with RedisLock(self.identifier) as lock:
+            if not cacheController.has_instances(self.identifier):
+                cacheController.add_instance( self.identifier, self.instance_id)
+                self.django_reference_function.to_redis()                    
+                #print("referenceFunction _django_to_redis %s loaded from django" % self.django_reference_function.id)
+            
         self.isLoaded = True
         if self.keepaliveThread == None:
             self.keepaliveThread = threading.Thread(target=self._keepalive)
@@ -358,15 +361,13 @@ class RedisReferenceFunction():
             self.keepaliveThread.start()        
       
     def save_to_django(self):
-        #print("referenceFunction save_to_django %s" % self.django_reference_function.id)
-        RedisLock.lock(self.identifier) 
-        self.django_reference_function.from_redis()   
-        RedisLock.unlock(self.identifier) 
-        #print("referenceFunction %s saved" % self.django_reference_function.id)
+        with RedisLock(self.identifier) as lock:
+            self.django_reference_function.from_redis()   
          
     def dispose(self):
-        cacheController.remove_instance( self.instance_id)        
         self.isLoaded = False 
+        cacheController.remove_instance( self.instance_id)        
+        
          
     def _keepalive(self):   
         while self.isLoaded:
