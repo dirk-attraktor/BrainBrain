@@ -303,7 +303,7 @@ class p2pNode():
                     peer = random.choice(peers)
                     p2pSuperNodeConnection = P2PSuperNodeConnection(peer, self.onSuperNodeConnected, self.onSuperNodeDisconnected)
                 else:
-                    print(" no supernodes available")
+                    print(" no more supernodes available")
                     if len(p2pSuperNodeConnections) == 0:  
                         print("no peer available, bootstrap not possible")
                     else:

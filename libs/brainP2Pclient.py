@@ -46,11 +46,13 @@ class BrainP2Pclient():
                 "arguments" : { "problem_name": problem_name, "limit": limit_per_node},
             }
             self.supernode_connection.send(json.dumps(request))
+            time.sleep(0.1)
             
-        timeout = 30
+        timeout = 60
         while len(self.results) < requests and timeout > 0:
             time.sleep(1)
             timeout -= 1
+            
         self.supernode_connection.close()
         individuals = []
         [individuals.extend(r) for r in self.results]

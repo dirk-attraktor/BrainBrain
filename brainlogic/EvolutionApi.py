@@ -463,9 +463,12 @@ class EvolutionaryMethods():
                     individual_id = random.randint(1000,individual_id_range)  
                     new_individual_ids.append(individual_id)       
                     print("created ind from p2p")
-                    redis_lua_scripts.createIndividual( worst_population.species_id, worst_population.population_id, individual_id, "", ind["code"])
-            
-            
+                    try:
+                        decoded = binascii.a2b_qp(ind["code"])
+                        redis_lua_scripts.createIndividual( worst_population.species_id, worst_population.population_id, individual_id, "",  )
+                    except Exception as e:
+                        print("Decode failed: %s" % e)
+                        
     @staticmethod
     def onPopulationsizeUnderflow(population):
         pipe = redisconnection.pipeline()
