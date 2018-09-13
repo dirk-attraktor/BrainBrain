@@ -3,12 +3,13 @@ import random
 import time
 import threading
 import json
+import uuid
+
 from datetime import datetime
 from datetime import datetime, timedelta
 from django.utils import timezone
 from SimpleWebSocketServer import SimpleWebSocketServer, WebSocket
 from websocket import create_connection
-
 
 import django
 from django.db import transaction
