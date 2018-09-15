@@ -102,17 +102,20 @@ void process( ){
     struct timeval  execution_starttime, execution_endtime;
     
     int jumpmap[MAX_CODE_SIZE] = {-1};
-    unsigned char looplimitmap[MAX_CODE_SIZE] = {0};
+    uint16_t looplimitmap[MAX_CODE_SIZE] = {0};
+    unsigned long long steplimitmap[MAX_CODE_SIZE] = {0};
   
     char nolog = 0; // dont log output stats to redis
     
     memset(jumpmap,     -1, sizeof(int) * MAX_CODE_SIZE );
-    memset(looplimitmap, 0, sizeof(unsigned char) * MAX_CODE_SIZE );
+    memset(looplimitmap, 0, sizeof(uint16_t) * MAX_CODE_SIZE );
+    memset(steplimitmap, 0, sizeof(unsigned long long) * MAX_CODE_SIZE );
     memset(memory_char,  0, sizeof(char) * MAX_MEMORY_SIZE );
   
     while(1){
         memset(jumpmap,     -1, sizeof(int) * code_loaded + 1);
-        memset(looplimitmap, 0, sizeof(unsigned char) * code_loaded + 1);
+        memset(looplimitmap, 0, sizeof(uint16_t) * code_loaded + 1);
+        memset(steplimitmap, 0, sizeof(unsigned long long) * code_loaded + 1);
         memset(memory_char,  0, sizeof(char) * memory_char_used + 1);
 
         
@@ -244,6 +247,7 @@ void process( ){
         parenthesis_tmp_position = 0; // new jump position
         
         int i = 0;
+        int subloopcnt = 0;
         for(i=0;i<code_loaded;i++){
             if(code[i] == '[' && jumpmap[i] == -1){ 
                 parenthesis_tmp_position = i;
@@ -257,27 +261,47 @@ void process( ){
                     jumpmap[i] = parenthesis_tmp_position;
                 }else{
                     jumpmap[i] = i;
+                    if (DEBUG) fprintf(stderr, "no match found for [ on %ull\n", i);
                 }       
             }
             if(code[i] == ']' && jumpmap[i] == -1){                
                 parenthesis_tmp_position = i;
                 parenthesis_counter = 1;
-                while (parenthesis_counter && parenthesis_tmp_position > 0) {
+                subloopcnt = 1;
+                while (parenthesis_counter != 0 && parenthesis_tmp_position > 0) {
                     parenthesis_tmp_position -= 1;
-                    if (code[parenthesis_tmp_position] == ']') parenthesis_counter += 1;
-                    if (code[parenthesis_tmp_position] == '[') parenthesis_counter -= 1;
+                    if (code[parenthesis_tmp_position] == ']'){ parenthesis_counter += 1; subloopcnt += 1;};
+                    if (code[parenthesis_tmp_position] == '['){ parenthesis_counter -= 1; };
                 }
                 if(parenthesis_counter == 0){
                     jumpmap[i] = parenthesis_tmp_position; 
+                    steplimitmap[i] = subloopcnt;
                 }else{
                     jumpmap[i] = i;
+                    if (DEBUG) fprintf(stderr, "no match found for ] on %ull\n", i);
                 } 
             }
+        }
+        unsigned long long totalsubloops = 0;
+        unsigned long long stepspersubloop = 0;
+        for(i=0;i<code_loaded;i++){
+            totalsubloops += steplimitmap[i];
+            if (DEBUG) printf("steplimitmap %d %d\n", i ,  steplimitmap[i]);
+        }
+        if(totalsubloops > 0){
+            stepspersubloop = code_steps_max / totalsubloops;
+        }
+        for( i = 0 ; i < code_loaded ; i++){
+            steplimitmap[i] = steplimitmap[i] * stepspersubloop;
+            if( i > 0 ){
+                steplimitmap[i] = steplimitmap[i] + steplimitmap[i-1];
+            }
+            if (DEBUG) printf("steplimitmap %ull %ull\n", i ,  steplimitmap[i]);
         }
         
         while (code_position < code_loaded && code_steps_executed < code_steps_max) {
             code_steps_executed += 1;
-            if (DEBUG) fprintf(stderr, "Step %llu pos %llu \n", code_steps_executed, code_position);
+            //if (DEBUG) fprintf(stderr, "Step %llu pos %llu \n", code_steps_executed, code_position);
             switch(code[code_position]) {
                 case 'r' : // create random char in char memory
                     memory_char[memory_char_position] =  rand() % 256;
@@ -350,14 +374,17 @@ void process( ){
                     break;
                 case '[':
                     looplimitmap[code_position] += 1;
-                    if (memory_char[memory_char_position] == 0 || looplimitmap[code_position] == 0) {
+                    if (memory_char[memory_char_position] == 0  || looplimitmap[code_position] % 2048 == 0 ) {
                         code_position = jumpmap[code_position];
                     }
                     break;
-                case ']':
+                case ']':    
                     looplimitmap[code_position] += 1;
-                    if (memory_char[memory_char_position] != 0 && looplimitmap[code_position] != 0) {
+                    if (memory_char[memory_char_position] != 0  &&  looplimitmap[code_position] % 2048 != 0 && code_steps_executed <= steplimitmap[code_position] ) {
                         code_position = jumpmap[code_position];
+                    }else{
+                        looplimitmap[code_position] = 0;
+                        looplimitmap[jumpmap[code_position]] = 0;
                     }
                     break;
                default:

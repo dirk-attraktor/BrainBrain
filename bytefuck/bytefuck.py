@@ -66,6 +66,7 @@ class ByteFuckHelpers():
                 [re.compile(b'\>\<'), b''  ], # right/left in char memory
                 [re.compile(b'\[\]'), b''  ], # empty loop
             ]
+            
         def get_random_byte(self):
             return random.choice(self.bytefuckchars)
             
@@ -122,7 +123,7 @@ class Bytefuck():
         redisconnection.set("individual.%s.memory" % individual_id, "")
         redisconnection.set("individual.%s.species" % individual_id, individual_id)  # random, ignore
         redisconnection.set("individual.%s.population" % individual_id, individual_id)# random, ignore
-        redisconnection.set("species.%s.max_steps" % individual_id, "2000000")
+        redisconnection.set("species.%s.max_steps" % individual_id, 1000*1000*1000)
         redisconnection.set("species.%s.max_memory" % individual_id, "500000")
         redisconnection.set("species.%s.max_permanent_memory" % individual_id, "50000")
         redisconnection.set("species.%s.max_permanent_memory" % individual_id, "50000")
@@ -141,7 +142,7 @@ class Bytefuck():
 helloworld1 = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
 helloworld2 = ">++++++++[-<+++++++++>]<.>>+>-[+]++>++>+++[>[->+++<<+++>]<<]>-----.>->+++..+++.>-.<<+[>[+>+]>>]<--------------.>>.+++.------.--------.>+.>+."
 helloworld3 = "+[>>>->-[>->----<<<]>>]>.---.>+..+++.>>.<.>>---.<<<.+++.------.<-.>>+."   
-helloworld4 = ",<<-]>]+[-]>,<,,>,][+>,]+>,+>[+<.[-]]<]>>,[>]>,,,,,,>+<[+>,]+>,+>[++.[-<-]]<]],,[>]>,,,,<<,,,>,,,,]>,,],[.,][,],<[>,->->]>,<,,,],,,,<,]>,],[<,][,],,>]>,<,[>[>],,,>>>>,,,[<,]<,+]>]]>,][>,[.,][,],,],,,"
+helloworld4 = ",<[]<-]>]+[-]>,<,,>,][+>,]+>,+>[+<.[-]]<]>>,[>]>,,,,,,>+<[+>,]+>,+>[++.[-<-]]<]],,[>]>,,,,<<,,,>,,,,]>,,],[.,][,],<[>,->->]>,<,,,],,,,<,]>,],[<,][,],,>]>,<,[>[>],,,>>>>,,,[<,]<,+]>]]>,][>,[.,][,],,],,,"
 
 mandelbrot = '''+++++++++++++[->++>>>+++++>++>+<<<<<<]>>>>>++++++>--->>>>>>>>>>+++++++++++++++[[
 >>>>>>>>>]+[<<<<<<<<<]>>>>>>>>>-]+[>>>>>>>>[-]>]<<<<<<<<<[<<<<<<<<<]>>>>>>>>[-]+
@@ -301,5 +302,5 @@ if __name__ == "__main__":
     print("4: %s" % bytefuck.execute(helloworld4,""))
     if code != None:    
         print("code: %s" % bytefuck.execute(code,inputbytes))
-    #print(execute(mandelbrot,""))
+    print(bytefuck.execute(mandelbrot,""))
 

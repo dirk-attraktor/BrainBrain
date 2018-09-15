@@ -465,7 +465,7 @@ class EvolutionaryMethods():
                     print("created ind from p2p")
                     try:
                         decoded = binascii.a2b_qp(ind["code"])
-                        redis_lua_scripts.createIndividual( worst_population.species_id, worst_population.population_id, individual_id, "",  )
+                        redis_lua_scripts.createIndividual( worst_population.species_id, worst_population.population_id, individual_id, "", decoded )
                     except Exception as e:
                         print("Decode failed: %s" % e)
                         
