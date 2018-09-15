@@ -6,7 +6,8 @@ import random
 import string
 import json
 import bson
- 
+import struct
+
 def get_examplesource(taskname):
     max_cachesize = 4000
     cache_hitrate = 0.999
@@ -31,6 +32,24 @@ def get_examplesource(taskname):
                 yield r 
     return f
    
+def examplesource_add_2_packed_uint():
+    while True:
+        a = random.randint(0, 2*1000*1000*1000)
+        b = random.randint(0, 2*1000*1000*1000)
+        c = a + b
+        src = struct.pack('II', a , b)
+        dst = struct.pack('I', c)
+        yield [src, dst]
+
+def examplesource_add_2_packed_int():
+    while True:
+        a = random.randint(-1*1000*1000*1000, 1*1000*1000*1000)
+        b = random.randint(-1*1000*1000*1000, 1*1000*1000*1000)
+        c = a + b
+        src = struct.pack('ii', a , b)
+        dst = struct.pack('i', c)
+        yield [src, dst]        
+        
 def examplesource_decimal2byte():
     while True:
         a = random.randint(0, 255)
@@ -143,6 +162,9 @@ task_mapping =  {
     
     "my-testcase add 2 bytes": examplesource_add_2_bytes,
     "my-testcase sub 2 bytes": examplesource_sub_2_bytes,
+    
+    "my-testcase add 2 packed uint": examplesource_add_2_packed_uint,
+    "my-testcase add 2 packed int":  examplesource_add_2_packed_int,
     
     "my-testcase add 2 integer bson": examplesource_add_2_integer_bson,
     "my-testcase sub 2 integer bson": examplesource_sub_2_integer_bson,

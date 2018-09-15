@@ -14,6 +14,7 @@ import numpy
 from libs import reward
 from braintrain import google_testcases
 from braintrain import simple_testcases
+from braintrain import data2data_testcases
 
 import brainlogic.EvolutionApi
 from brainlogic.EvolutionApi import Evolution
@@ -29,13 +30,13 @@ def trainByExample(species_name, problemdefinition):
         problem_description =  problemdefinition["problem_description"],
         
         max_populations = 10 , # max number of parallel populations
-        min_populationsize = 150, # min number of living individuals per population, create random inds if lower
+        min_populationsize = 200, # min number of living individuals per population, create random inds if lower
         max_populationsize = 250, # max number of living individuals per population
         min_code_length = 10, #
         max_code_length = 300, #
         max_compiled_code_length = 300, #
         min_fitness_evaluations = 2, #
-        max_fitness_evaluations = 15, #          
+        max_fitness_evaluations = 20, #          
         max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
         max_permanent_memory = 1000, # max perm memory stored in             
         max_steps = 10 * 1000 * 1000, # executed steps of code per individual 
@@ -79,6 +80,20 @@ for simple_testcase_name in simple_testcases.task_mapping.keys():
             },
         ],
     })
+    
+# data2data PER EXAMPLE TAINING  
+for data2data_testcase in data2data_testcases.task_mapping.keys():
+    training_problems.append({
+        "species_name" : data2data_testcase,
+        "problemdefinitions" : [
+            {
+                "problem_name" : data2data_testcase,
+                "problem_description" : data2data_testcase,
+                "examplesource" : data2data_testcases.get_examplesource(data2data_testcase),
+                "trainingfunction" : trainByExample,
+            },
+        ],
+    })    
 '''
 training_problems.append({
     "species_name" : "my-testcase add/sub 2 integer",
@@ -108,6 +123,14 @@ def run_training_problem(training_problem):
 
 [print("%s"% x)  for x in training_problems]
 print("%s Problems known" % len(training_problems))
+
+#p = [x for x in training_problems if x["species_name"] == "data2data byte from bson dict"][0]
+#p = [x for x in training_problems if x["species_name"] ==  "data2data byte at index"][0]
+#p = [x for x in training_problems if x["species_name"] ==  "data2data byte from bson dict"][0]
+#p = [x for x in training_problems if x["species_name"] ==  "data2data bytes from bson dict"][0]
+#print(p)
+#run_training_problem(p)
+#exit(0)
 
 def training_thread(nrOfTrainingRuns):
     while nrOfTrainingRuns > 0:

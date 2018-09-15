@@ -43,9 +43,9 @@ class Problem(models.Model):
     def getP2PIndividuals(self,limit = 1):
         species_ids =  self.species.all().values_list('id', flat=True)
         #print(species_ids)
-        population_ids = Population.objects.filter(species__in=list(species_ids)).filter(fitness_relative__gt=0.75).values_list('id', flat=True)
+        population_ids = Population.objects.filter(species__in=list(species_ids)).filter(fitness_relative__gt=0.5).values_list('id', flat=True)
         #print(population_ids)
-        individual_ids = Individual.objects.filter(population__in=list(population_ids)).filter(fitness_relative_adult__gt=0.75).values_list('id', flat=True)
+        individual_ids = Individual.objects.filter(population__in=list(population_ids)).filter(fitness_relative_adult__gt=0.5).values_list('id', flat=True)
         individual_ids = [i for i in individual_ids]
         count = len(individual_ids)
         if count == 0:

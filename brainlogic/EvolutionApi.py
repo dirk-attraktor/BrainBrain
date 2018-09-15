@@ -305,14 +305,14 @@ evolutionMateMutate = Evolution(
     problem_description = "MateMutate",
     
     max_populations = 10 , # max number of parallel populations
-    min_populationsize = 250, # min number of living individuals per population, create random inds if lower
-    max_populationsize = 350, # max number of living individuals per population
+    min_populationsize = 350, # min number of living individuals per population, create random inds if lower
+    max_populationsize = 400, # max number of living individuals per population
     min_code_length = 100, #
-    max_code_length = 500, #
-    max_compiled_code_length = 1000, #
+    max_code_length = 600, #
+    max_compiled_code_length = 1500, #
     
     min_fitness_evaluations = 4, #
-    max_fitness_evaluations = 20, #
+    max_fitness_evaluations = 50, #
     
     max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
     max_permanent_memory = 1000, # max perm memory stored in 
@@ -335,14 +335,14 @@ evolutionCompiler = Evolution(
     problem_description = "Compile an individual from bytes to some brainfuck dialect",
     
     max_populations = 10 , # max number of parallel populations
-    min_populationsize = 250, # min number of living individuals per population, create random inds if lower
-    max_populationsize = 350, # max number of living individuals per population
+    min_populationsize = 350, # min number of living individuals per population, create random inds if lower
+    max_populationsize = 400, # max number of living individuals per population
     min_code_length = 100, #
-    max_code_length = 500, #
-    max_compiled_code_length = 1000, #
+    max_code_length = 600, #
+    max_compiled_code_length = 1500, #
     
     min_fitness_evaluations = 4, #
-    max_fitness_evaluations = 20, #
+    max_fitness_evaluations = 50, #
     
     max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
     max_permanent_memory = 1000, # max perm memory stored in 
@@ -376,7 +376,7 @@ class EvolutionaryMethods():
                 if len(code_compiled) > max_compiled_code_length * 5: # speedup next step if generated code is way to long
                     code_compiled = code_compiled[:max_compiled_code_length * 5]
                 code_compiled = byteFuckHelper.clean_bytefuck(code_compiled)
-                code_compiled = EvolutionaryMethods.limit_code_length(code_compiled, max_compiled_code_length)
+                code_compiled = EvolutionaryMethods.limit_code_length(code_compiled, 5, max_compiled_code_length)
                 if len(code_compiled) > 5:
                     redis_lua_scripts.setIndividualCompiledCode(individual.individual_id, code_compiled,  selected_compiler.getIdentifier())
                     return 
@@ -386,9 +386,9 @@ class EvolutionaryMethods():
     
     @staticmethod
     def afterIndividualAddFitness(individual):
-        p = 0.2 # dont reward compiler/matemutator to often  
+        p = 0.15 # dont reward compiler/matemutator to often  
         if individual.species_id == evolutionMateMutate.species.species_id or individual.species_id == evolutionCompiler.species.species_id:
-            p = 0.02 # dont recursive reward  compiler/matemutator to often  
+            p = 0.015 # dont recursive reward  compiler/matemutator to often  
             
         subreward = ( 0.2 * individual._fitness_relative_all ) + ( 0.8 * individual._fitness_relative_adult )
             
@@ -543,7 +543,7 @@ class EvolutionaryMethods():
         individual_ids = []
         for i in range(0,2):
             try:
-                individual_index = randomchoice.selectLinear(nr_of_individuals, 5, reverse = True)
+                individual_index = randomchoice.selectLinear(nr_of_individuals, 50, reverse = True)
                 individual_id = int(float(redisconnection.zrange("population.%s.individuals.adultsByFitness" % population.population_id, individual_index, individual_index)[0]))
                 individual_ids.append(individual_id)
             except Exception as e:
@@ -559,8 +559,9 @@ class EvolutionaryMethods():
             index = "%s" % index
             data[index] = {}
             data[index]["code"] = redisconnection.get("individual.%s.code" % individual_id)
+            data[index]["memory"] = redisconnection.get("individual.%s.memory" % individual_id)
             data[index]["fitness_relative"] = redisconnection.get("individual.%s.fitness_relative_adult" % individual_id)
-            if data[index]["code"] == None or data[index]["fitness_relative"] == None:
+            if data[index]["code"] == None or data[index]["fitness_relative"] == None or data[index]["memory"] == None:
                 print("mate fail1")
                 return None
         pipe = redisconnection.pipeline()
@@ -571,7 +572,7 @@ class EvolutionaryMethods():
         for i in range(0,10):
             selected_matemutator = evolutionMateMutate.get_random_individual()
             new_code = selected_matemutator.execute(bson.dumps(data))
-            new_code = EvolutionaryMethods.limit_code_length(new_code, max_code_length)
+            new_code = EvolutionaryMethods.limit_code_length(new_code, min_code_length, max_code_length)
             if len(new_code) > 5:
                 return EvolutionaryMethods._save_new_individual(population, selected_matemutator.getIdentifier(), new_code)
             else:
@@ -586,7 +587,7 @@ class EvolutionaryMethods():
         return individual_id
     
     @staticmethod
-    def limit_code_length(code, max_code_length):
+    def limit_code_length(code, min_code_length, max_code_length):
         if len(code) > max_code_length * 3:
             code = code[:max_code_length * 3]
             
@@ -599,7 +600,17 @@ class EvolutionaryMethods():
                 tomanychars -= 1
                 r = random.randint(0, new_code_len-1)
                 new_code_list[r] = None
-            code = bytes([x for x in new_code_list if x != None]) 
+            code = bytes([x for x in new_code_list if x != None])
+            
+        tolittechars = min_code_length - len(code)
+        if tolittechars > 0:
+            new_code_list = list(code)
+            new_code_len = len(new_code_list)
+            while tolittechars > 0:
+                tolittechars -= 1
+                r = random.randint(0, new_code_len)
+                new_code_list.insert(r, byteFuckHelper.get_random_byte())
+            code = bytes([x for x in new_code_list if x != None])                
         return code
             
 brainlogic.redis_models.evolutionaryMethods = EvolutionaryMethods
