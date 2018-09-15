@@ -99,7 +99,9 @@
                             <dd>{{population.species.min_code_length | format_number}}</dd>
                             <dt>Max code length</dt>
                             <dd>{{population.species.max_code_length | format_number}}</dd>
-                            
+                             <dt>Max compiled code length</dt>
+                            <dd>{{population.species.max_compiled_code_length | format_number}}</dd>
+                                       
                             <br>
                             <dt>Min fitness evals</dt>
                             <dd>{{population.species.min_fitness_evaluations | format_number}}</dd>
@@ -148,7 +150,8 @@
                                             
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> compiler</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> matemutator</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> code_size</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> code size</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> compiled code size</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> memory_size</th>
                                             
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> fitness</th>
@@ -172,6 +175,7 @@
                                                     <td>{{ object.compiler }}</td>
                                                     <td>{{ object.matemutator }}</td>
                                                     <td>{{ object.code_size | format_number}}</td>
+                                                    <td>{{ object.code_compiled_size | format_number}}</td>
                                                     <td>{{ object.memory_size | format_number}}</td>
 
                                                     <td>{{ object.fitness |floatformat:4 }}</td>     

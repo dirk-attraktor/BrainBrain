@@ -78,6 +78,7 @@ class Evolution():
             max_populations , # max number of parallel populations
             max_populationsize, # max number of living individuals per population
             min_populationsize, # min number of living individuals per population, create random inds if lower
+            max_compiled_code_length, #
             max_code_length, #
             min_code_length, #
             
@@ -108,6 +109,7 @@ class Evolution():
         self.djangospecies.max_populations = max_populations
         self.djangospecies.max_populationsize = max_populationsize
         self.djangospecies.min_populationsize = min_populationsize
+        self.djangospecies.max_compiled_code_length =  max_compiled_code_length
         self.djangospecies.max_code_length =  max_code_length
         self.djangospecies.min_code_length =  min_code_length
         self.djangospecies.max_fitness_evaluations =  max_fitness_evaluations
@@ -307,19 +309,20 @@ evolutionMateMutate = Evolution(
     max_populationsize = 350, # max number of living individuals per population
     min_code_length = 100, #
     max_code_length = 500, #
+    max_compiled_code_length = 1000, #
     
     min_fitness_evaluations = 4, #
     max_fitness_evaluations = 20, #
     
     max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
     max_permanent_memory = 1000, # max perm memory stored in 
-    max_steps = 10 * 1000 * 1000, # executed steps of code per individual 
+    max_steps = 50 * 1000 * 1000, # executed steps of code per individual 
     useP2P = True,
     warmup = False,
     reference_functions = [
         { "name" : "evolutionMateMutateReference" , "function" : evolutionMateMutateReference },
     ],
-    reference_function_rate = 0.8,
+    reference_function_rate = 0.75,
 )
 
 def evolutionCompilerReference(code):
@@ -336,21 +339,23 @@ evolutionCompiler = Evolution(
     max_populationsize = 350, # max number of living individuals per population
     min_code_length = 100, #
     max_code_length = 500, #
+    max_compiled_code_length = 1000, #
     
     min_fitness_evaluations = 4, #
     max_fitness_evaluations = 20, #
     
     max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
     max_permanent_memory = 1000, # max perm memory stored in 
-    max_steps = 10 * 1000 * 1000, # executed steps of code per individual 
+    max_steps = 50 * 1000 * 1000, # executed steps of code per individual 
     useP2P = True,
     warmup = False,
     reference_functions = [
         { "name" : "evolutionCompilerReference" , "function" : evolutionCompilerReference },
     ],
-    reference_function_rate = 0.8,
+    reference_function_rate = 0.75,
 )     
-            
+
+
 class EvolutionaryMethods():
     @staticmethod
     def onIndividualMustCompile(individual):
@@ -364,15 +369,15 @@ class EvolutionaryMethods():
             code_compiled = byteFuckHelper.clean_bytefuck(code)
             redis_lua_scripts.setIndividualCompiledCode(individual.individual_id, code_compiled, "")                
         else:    
-            max_code_length = int(redisconnection.get("species.%s.max_code_length" %  individual.species_id))
+            max_compiled_code_length = int(redisconnection.get("species.%s.max_compiled_code_length" %  individual.species_id))
             for i in range(0,10):
                 selected_compiler = evolutionCompiler.get_random_individual()
-                #print(selected_compiler.individual_id)
                 code_compiled = selected_compiler.execute(code)
-                if len(code_compiled) > max_code_length:
-                    code_compiled = code_compiled[0:max_code_length]
+                if len(code_compiled) > max_compiled_code_length * 5: # speedup next step if generated code is way to long
+                    code_compiled = code_compiled[:max_compiled_code_length * 5]
                 code_compiled = byteFuckHelper.clean_bytefuck(code_compiled)
-                if len(code_compiled) > 3:
+                code_compiled = EvolutionaryMethods.limit_code_length(code_compiled, max_compiled_code_length)
+                if len(code_compiled) > 5:
                     redis_lua_scripts.setIndividualCompiledCode(individual.individual_id, code_compiled,  selected_compiler.getIdentifier())
                     return 
                 else:
@@ -398,6 +403,8 @@ class EvolutionaryMethods():
             
         max_ind_evals = individual._fitness_evaluations_min 
         max_ind_evals += ( individual._fitness_evaluations_max - individual._fitness_evaluations_min ) * ( individual._fitness_relative_adult**2.718281 )
+        if individual._fitness_relative_adult == 1 or individual._fitness_absolute == 1:
+            max_ind_evals = max_ind_evals ** 2  
         if individual._fitness_evaluations >= max_ind_evals:
             individual.die()
                         
@@ -418,7 +425,7 @@ class EvolutionaryMethods():
         if population_individuals_created % 10000 == 0: 
             print("population %s %s inds created" % ( population.population_id, population_individuals_created))
         
-        if species_individuals_created % (500*1000) == 0:   # on every x th ind created in species kill/recreate worst population from local species
+        if species_individuals_created % (250*1000) == (125*1000):   # on every x th ind created in species kill/recreate worst population from local species
             species = RedisSpecies(population.species_id)
             worst_population_id = int(redisconnection.zrange("species.%s.populations.byBestFitness" % population.species_id, 0, 0)[0])
             worst_population = RedisPopulation(population.species_id, worst_population_id)
@@ -432,12 +439,16 @@ class EvolutionaryMethods():
                     if individual_to_kill not in new_individual_ids:
                         redis_lua_scripts.die(individual_to_kill.species_id, individual_to_kill.population_id, individual_to_kill.individual_id) #use diretct method here to not tigger afterIndividualDeath()
                         break
-                individual1 = species.get_random_individual(biased=False)
-                individual2 = species.get_random_individual(biased=False)
-                new_individual_id = EvolutionaryMethods._mate_mutate_indivials(worst_population, [ individual1.individual_id, individual2.individual_id])
-                new_individual_ids.append(new_individual_id)
+                for tries in range(0,10):
+                    individual1 = species.get_random_individual(biased=False)
+                    individual2 = species.get_random_individual(biased=False)
+                    new_individual_id = EvolutionaryMethods._mate_mutate_indivials(worst_population, [ individual1.individual_id, individual2.individual_id])
+                    if new_individual_id != None:
+                        new_individual_ids.append(new_individual_id)
+                        break
+                    print(tries)
                 
-        if species_individuals_created % (1*1000*1000) == 0:   # on every x th ind created in species kill/recreate worst population from p2p 
+        if species_individuals_created % (500*1000) == 0:   # on every x th ind created in species kill/recreate worst population from p2p 
             species = Species.objects.get(id = population.species_id)
             if species.useP2P == True:
                 max_populationsize = int(redisconnection.get("species.%s.max_populationsize" % population.species_id))
@@ -492,7 +503,6 @@ class EvolutionaryMethods():
             try:
                 individual_id = int(float(redisconnection.zrange("population.%s.individuals.allByFitness" % population.population_id, individual_index, individual_index)[0]))
                 RedisIndividual(population.species_id, population.population_id, individual_id).die()
-                
             except:
                 print("kill failed")
             nr_of_individuals = redisconnection.zcount("population.%s.individuals.allByFitness" % population.population_id,"-inf","inf")
@@ -533,7 +543,7 @@ class EvolutionaryMethods():
         individual_ids = []
         for i in range(0,2):
             try:
-                individual_index = randomchoice.selectLinear(nr_of_individuals, 23, reverse = True)
+                individual_index = randomchoice.selectLinear(nr_of_individuals, 5, reverse = True)
                 individual_id = int(float(redisconnection.zrange("population.%s.individuals.adultsByFitness" % population.population_id, individual_index, individual_index)[0]))
                 individual_ids.append(individual_id)
             except Exception as e:
@@ -552,7 +562,7 @@ class EvolutionaryMethods():
             data[index]["fitness_relative"] = redisconnection.get("individual.%s.fitness_relative_adult" % individual_id)
             if data[index]["code"] == None or data[index]["fitness_relative"] == None:
                 print("mate fail1")
-                return
+                return None
         pipe = redisconnection.pipeline()
         pipe.get("species.%s.max_code_length" % population.species_id)
         pipe.get("species.%s.min_code_length" % population.species_id)
@@ -561,21 +571,37 @@ class EvolutionaryMethods():
         for i in range(0,10):
             selected_matemutator = evolutionMateMutate.get_random_individual()
             new_code = selected_matemutator.execute(bson.dumps(data))
-            if len(new_code) > max_code_length:
-                new_code = new_code[0:max_code_length]
-            if len(new_code) > 3:
+            new_code = EvolutionaryMethods.limit_code_length(new_code, max_code_length)
+            if len(new_code) > 5:
                 return EvolutionaryMethods._save_new_individual(population, selected_matemutator.getIdentifier(), new_code)
-                 
             else:
                 selected_matemutator.addFitness(0)
-       
+        return None
+        
     @staticmethod     
     def _save_new_individual( population, matemutator_id, code):
         individual_id = random.randint(1000,individual_id_range)            
         individuals_created_species, individuals_created_pop  = redis_lua_scripts.createIndividual( population.species_id, population.population_id, individual_id, matemutator_id, code)
         EvolutionaryMethods.onIndividualCreated(population, int(individuals_created_species), int(individuals_created_pop))
         return individual_id
-        
+    
+    @staticmethod
+    def limit_code_length(code, max_code_length):
+        if len(code) > max_code_length * 3:
+            code = code[:max_code_length * 3]
+            
+        tomanychars = len(code) - max_code_length
+        if tomanychars > 0:
+            #print("delete %s chars" % tomanychars)
+            new_code_list = list(code)
+            new_code_len = len(new_code_list)
+            while tomanychars > 0:
+                tomanychars -= 1
+                r = random.randint(0, new_code_len-1)
+                new_code_list[r] = None
+            code = bytes([x for x in new_code_list if x != None]) 
+        return code
+            
 brainlogic.redis_models.evolutionaryMethods = EvolutionaryMethods
 
   

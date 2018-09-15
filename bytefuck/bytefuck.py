@@ -42,29 +42,45 @@ class ByteFuckHelpers():
             self.bytefuckchars_re = re.compile(b'[^\,\.\<\>\+\-\[\]]')
             
             self.toremoves = [
-                [re.compile(b'pP')  , b''  ], # left/right in perm memory
-                [re.compile(b'Pp')  , b''  ], # right/left in perm memory
-                [re.compile(b'll')  , b'l' ], # double load
-                [re.compile(b'ss')  , b's' ], # double save
-                [re.compile(b'rr')  , b'r' ], # double random char
-                [re.compile(b'sl')  , b's' ], # save then load again
-                [re.compile(b'ls')  , b'l' ], # load then save again
-                [re.compile(b',i,') , b',' ], # double input buffer read
-                [re.compile(b'rl')  , b'l' ], # random then overwrite with load
-                [re.compile(b'lr')  , b'r' ], # load then overwrite with random
-                [re.compile(b'\+r') , b'r' ], # add then overwrite with random
-                [re.compile(b'\-r') , b'r' ], # sub then overwrite with random
-                [re.compile(b'\+l') , b'l' ], # add then overwrite with load    
-                [re.compile(b'\-l') , b'l' ], # sub then overwrite with load
-                [re.compile(b'\+,') , b',' ], # add then overwrite with input read    
-                [re.compile(b'\-,') , b',' ], # sub then overwrite with input read
-                [re.compile(b'r,')  , b',' ], # random then overwrite with input read
-                [re.compile(b'l,')  , b',' ], # load then overwrite with input read
-                [re.compile(b'\+\-'), b''  ], # +1 -1  in char memory
-                [re.compile(b'\-\+'), b''  ], # -1 +1  in char memory
-                [re.compile(b'\<\>'), b''  ], # left/right in char memory
-                [re.compile(b'\>\<'), b''  ], # right/left in char memory
-                [re.compile(b'\[\]'), b''  ], # empty loop
+                [  
+                    re.compile(b"|".join([
+                            b'pP'  , # left/right in perm memory
+                            b'Pp'  , # right/left in perm memory
+                            b'\+\-', # +1 -1  in char memory
+                            b'\-\+', # -1 +1  in char memory
+                            b'\<\>', # left/right in char memory
+                            b'\>\<', # right/left in char memory
+                            b'\[\]', # empty loop
+                    ])) , b''
+                ],[  
+                    re.compile(b"|".join([
+                        b',i,' , # double input buffer read
+                        b'\+,' , # add then overwrite with input read 
+                        b'\-,' , # sub then overwrite with input read
+                        b'r,'  , # random then overwrite with input read
+                        b'l,'  , # load then overwrite with input read
+                    ])) , b','
+                ],[  
+                    re.compile(b"|".join([
+                        b'ls'  , # double load
+                        b'rl'  , # load then save again
+                        b'll'  , # random then overwrite with load
+                        b'\+l' , # add then overwrite with load    
+                        b'\-l' , # sub then overwrite with load
+                    ])) , b'l'
+                ],[  
+                    re.compile(b"|".join([
+                        b'rr'  , # double random char
+                        b'lr'  , # load then overwrite with random
+                        b'\+r' , # add then overwrite with random
+                        b'\-r' , # sub then overwrite with random
+                    ])) , b'r'
+                ],[  
+                    re.compile(b"|".join([
+                        b'ss' , # double save
+                        b'sl' , # save then load again
+                    ])) , b's'
+                ]
             ]
             
         def get_random_byte(self):
@@ -72,14 +88,17 @@ class ByteFuckHelpers():
             
         def clean_bytefuck(self, binary):
             bytefuck = re.sub(self.bytefuckchars_re, b'', binary)
+            olength = len(bytefuck)
             matched = True
             while matched == True:
                 matched = False
                 for toremove in self.toremoves:
-                    old = bytefuck
                     bytefuck = re.sub(toremove[0], toremove[1], bytefuck)
-                    if bytefuck != old:
+                    newlength = len(bytefuck)
+                    if newlength != olength:
                         matched = True
+                    olength = newlength
+                    
             return bytefuck
 
 # for debug/dev stuff and know bf testcases

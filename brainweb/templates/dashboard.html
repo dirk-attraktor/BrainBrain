@@ -36,23 +36,31 @@
                                         <tr role="row">
                                         
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Id</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Name</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Problem Name</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> ReferenceFunctions</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Populations</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Best Species population</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for object in problems %}
+                                        {% for problem in problems %}
                                             <tr>
-                                                    <td><a href="/problem/{{ object.id }}">{{ object.id }}</a></td>
-                                                    <td>{{ object.name }}</td>
-                                                    <td>{{ object.referencefunctions.count }}</td>
-                                                    <td>{{ object.populations.count }}</td>
+                                                    <td><a href="/problem/{{ problem.id }}">{{ problem.id }}</a></td>
+                                                    <td>{{ problem.name }}</td>
+                                                    <td>
+                                                        {% for referencefunction in problem.referencefunctions.all %}
+                                                            <a href="/referencefunction/{{referencefunction.id}}">{{ referencefunction.name }} {{referencefunction.fitness }}</a><br>
+                                                        {% endfor %}  
+                                                    </td>
+                                                    <td>
+                                                        {% for species in problem.species.all %}
+                                                            <a href="/species/{{species.id }}">Species: {{species.name }}</a> |
+                                                            <a href="/population/{{species.populations.all.0.id }}">Population: {{species.populations.all.0.id }} BestFitness: {{species.populations.all.0.best_individual_fitness }}</a><br>
+                                                        {% endfor %}  
+                                                    </td>
                                                 
                                                 <td>
-                                                    <a href="/problem/{{ object.id }}">Edit</a>
-                                                    <a href="/problem/{{ object.id }}/cleanup">cleanup</a>
+                                                    <a href="/problem/{{ problem.id }}">Edit</a>
                                                 </td>
                                                                   
                                             </tr>

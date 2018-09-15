@@ -64,6 +64,8 @@
                             <dd>{{species.min_code_length}}</dd>
                             <dt>Max code length</dt>
                             <dd>{{species.max_code_length}}</dd>
+                             <dt>Max compiled code length</dt>
+                            <dd>{{species.max_compiled_code_length}}</dd>
              
                             <br>
                             <dt>Max memory</dt>
@@ -109,6 +111,7 @@
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> fitness_evaluations_total</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Individuals</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg code size</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg compiled code size</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg memory_size</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Best fitness </th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> rel fitness </th>
@@ -133,6 +136,7 @@
                                                     <td>{{ object.fitness_evaluations_total| format_number }}</td>
                                                     <td>{{ object.individuals.count }}</td>
                                                     <td>{{ stats.avg_code_size  | format_number }}</td>
+                                                    <td>{{ stats.avg_code_compiled_size  | format_number }}</td>
                                                     <td>{{ stats.avg_memory_size | format_number }}</td>
                                                     <td>{{ object.best_individual_fitness |floatformat:4 }}</td>
                                                     <td>{{ object.fitness_relative |floatformat:2 }}</td>

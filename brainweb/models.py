@@ -72,6 +72,7 @@ class Species(models.Model ):
     max_populations =  models.BigIntegerField(default = 10)  # max number of parallel populations
     max_populationsize =  models.BigIntegerField(default = 100)  # max number of living individuals per population
     min_populationsize =  models.BigIntegerField(default = 50)  # max number of living individuals per population
+    max_compiled_code_length =  models.BigIntegerField(default = 20) #
     max_code_length =  models.BigIntegerField(default = 20) #
     min_code_length =  models.BigIntegerField(default = 20) #
 
@@ -102,6 +103,7 @@ class Species(models.Model ):
             "max_populations",
             "max_populationsize",
             "min_populationsize",
+            "max_compiled_code_length",
             "max_code_length",
             "min_code_length",
             "max_fitness_evaluations", # individuals with evals == max_fitness_evaluations die
@@ -166,6 +168,7 @@ class Species(models.Model ):
             "max_populations",
             "max_populationsize",
             "min_populationsize",
+            "max_compiled_code_length",
             "max_code_length",
             "min_code_length",
             "max_fitness_evaluations",
@@ -222,6 +225,7 @@ class Population(models.Model):
         if individuals_count == 0:
             return 0
         return {
+            "avg_code_compiled_size" :  sum([x.code_compiled_size           for x in individuals]) / individuals_count, 
             "avg_code_size" :           sum([x.code_size                    for x in individuals]) / individuals_count, 
             "avg_memory_size" :         sum([x.memory_size                  for x in individuals]) / individuals_count , # permanent memory
             "avg_fitness" :             sum([x.fitness                      for x in individuals]) / individuals_count , 
@@ -345,8 +349,10 @@ class Individual(models.Model):
     matemutator = models.CharField( max_length=100, default="")
     
     code          = models.TextField( max_length=10*1000*1000, default=".")
-    code_compiled = models.TextField( max_length=10*1000*1000, default=".")
     code_size =  models.BigIntegerField(default = 0)
+    code_compiled = models.TextField( max_length=10*1000*1000, default=".")
+    code_compiled_size =  models.BigIntegerField(default = 0)
+    
     memory        = models.TextField( max_length=10*1000*1000, default="")
     memory_size =  models.BigIntegerField(default = 0)
 
@@ -456,6 +462,7 @@ class Individual(models.Model):
         
         self.memory_size = len(self.memory)                      
         self.code_size = len(self.code)                      
+        self.code_compiled_size = len(self.code_compiled)                      
         self.created = timezone.now()
         return redisconnection.exists("individual.%s.alive" % individual_id)  # if not exists return false, because ind died
     
