@@ -305,13 +305,13 @@ evolutionMateMutate = Evolution(
     problem_description = "MateMutate",
     
     max_populations = 10 , # max number of parallel populations
-    min_populationsize = 350, # min number of living individuals per population, create random inds if lower
-    max_populationsize = 400, # max number of living individuals per population
+    min_populationsize = 450, # min number of living individuals per population, create random inds if lower
+    max_populationsize = 500, # max number of living individuals per population
     min_code_length = 100, #
     max_code_length = 600, #
     max_compiled_code_length = 1500, #
     
-    min_fitness_evaluations = 4, #
+    min_fitness_evaluations = 5, #
     max_fitness_evaluations = 50, #
     
     max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
@@ -335,13 +335,13 @@ evolutionCompiler = Evolution(
     problem_description = "Compile an individual from bytes to some brainfuck dialect",
     
     max_populations = 10 , # max number of parallel populations
-    min_populationsize = 350, # min number of living individuals per population, create random inds if lower
-    max_populationsize = 400, # max number of living individuals per population
+    min_populationsize = 450, # min number of living individuals per population, create random inds if lower
+    max_populationsize = 500, # max number of living individuals per population
     min_code_length = 100, #
     max_code_length = 600, #
     max_compiled_code_length = 1500, #
     
-    min_fitness_evaluations = 4, #
+    min_fitness_evaluations = 5, #
     max_fitness_evaluations = 50, #
     
     max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
@@ -386,9 +386,9 @@ class EvolutionaryMethods():
     
     @staticmethod
     def afterIndividualAddFitness(individual):
-        p = 0.15 # dont reward compiler/matemutator to often  
+        p = 0.2 # dont reward compiler/matemutator to often  
         if individual.species_id == evolutionMateMutate.species.species_id or individual.species_id == evolutionCompiler.species.species_id:
-            p = 0.015 # dont recursive reward  compiler/matemutator to often  
+            p = 0.02 # dont recursive reward  compiler/matemutator to often  
             
         subreward = ( 0.2 * individual._fitness_relative_all ) + ( 0.8 * individual._fitness_relative_adult )
             

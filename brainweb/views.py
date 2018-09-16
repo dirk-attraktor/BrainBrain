@@ -53,7 +53,7 @@ def getStats(keyname):
         datas.append(data)
         
     merged_stats = []
-    minutes_to_merge = 20
+    minutes_to_merge = 10
     for i in range(0,len(datas), minutes_to_merge): 
         merged_stat = merge_stats(datas[i:i+minutes_to_merge])
         if len([x for x in merged_stat[1:] if x != None]) > 0:
