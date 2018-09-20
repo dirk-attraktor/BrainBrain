@@ -36,7 +36,7 @@ def trainByExample(species_name, problemdefinition):
         max_code_length = 300, #
         max_compiled_code_length = 300, #
         min_fitness_evaluations = 3, #
-        max_fitness_evaluations = 20, #          
+        max_fitness_evaluations = 15, #          
         max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
         max_permanent_memory = 1000, # max perm memory stored in             
         max_steps = 10 * 1000 * 1000, # executed steps of code per individual 

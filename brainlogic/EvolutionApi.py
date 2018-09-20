@@ -304,15 +304,15 @@ evolutionMateMutate = Evolution(
     problem_name = "MateMutate", 
     problem_description = "MateMutate",
     
-    max_populations = 10 , # max number of parallel populations
-    min_populationsize = 450, # min number of living individuals per population, create random inds if lower
-    max_populationsize = 500, # max number of living individuals per population
+    max_populations = 12 , # max number of parallel populations
+    min_populationsize = 400, # min number of living individuals per population, create random inds if lower
+    max_populationsize = 450, # max number of living individuals per population
     min_code_length = 100, #
     max_code_length = 600, #
     max_compiled_code_length = 1500, #
     
-    min_fitness_evaluations = 5, #
-    max_fitness_evaluations = 50, #
+    min_fitness_evaluations = 10, #
+    max_fitness_evaluations = 80, #
     
     max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
     max_permanent_memory = 1000, # max perm memory stored in 
@@ -322,7 +322,7 @@ evolutionMateMutate = Evolution(
     reference_functions = [
         { "name" : "evolutionMateMutateReference" , "function" : evolutionMateMutateReference },
     ],
-    reference_function_rate = 0.75,
+    reference_function_rate = 0.4,
 )
 
 def evolutionCompilerReference(code):
@@ -334,15 +334,15 @@ evolutionCompiler = Evolution(
     problem_name =  "Compiler", 
     problem_description = "Compile an individual from bytes to some brainfuck dialect",
     
-    max_populations = 10 , # max number of parallel populations
-    min_populationsize = 450, # min number of living individuals per population, create random inds if lower
-    max_populationsize = 500, # max number of living individuals per population
+    max_populations = 12 , # max number of parallel populations
+    min_populationsize = 400, # min number of living individuals per population, create random inds if lower
+    max_populationsize = 450, # max number of living individuals per population
     min_code_length = 100, #
     max_code_length = 600, #
     max_compiled_code_length = 1500, #
     
-    min_fitness_evaluations = 5, #
-    max_fitness_evaluations = 50, #
+    min_fitness_evaluations = 10, #
+    max_fitness_evaluations = 80, #
     
     max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
     max_permanent_memory = 1000, # max perm memory stored in 
@@ -352,7 +352,7 @@ evolutionCompiler = Evolution(
     reference_functions = [
         { "name" : "evolutionCompilerReference" , "function" : evolutionCompilerReference },
     ],
-    reference_function_rate = 0.75,
+    reference_function_rate = 0.4,
 )     
 
 
@@ -386,18 +386,14 @@ class EvolutionaryMethods():
     
     @staticmethod
     def afterIndividualAddFitness(individual):
-        p = 0.2 # dont reward compiler/matemutator to often  
+        p = 0.5 # dont reward compiler/matemutator to often  
         if individual.species_id == evolutionMateMutate.species.species_id or individual.species_id == evolutionCompiler.species.species_id:
-            p = 0.02 # dont recursive reward  compiler/matemutator to often  
-            
-        subreward = ( 0.2 * individual._fitness_relative_all ) + ( 0.8 * individual._fitness_relative_adult )
-            
-        if random.random() <= p:       
-            individual.reward_subitem("individual.%s.compiler" % individual.individual_id, subreward)
-        if random.random() <= p:      
-            individual.reward_subitem("individual.%s.matemutator" % individual.individual_id, subreward)
+            p = 0.05 # dont recursive reward  compiler/matemutator to often  
         
         if individual._fitness_evaluations >= individual._fitness_evaluations_min and individual._fitness_absolute == 0:
+            if random.random() <= p:       
+                individual.reward_subitem("individual.%s.compiler"    % individual.individual_id, individual._fitness_relative_adult)
+                individual.reward_subitem("individual.%s.matemutator" % individual.individual_id, individual._fitness_relative_adult)            
             individual.die()
             return
             
@@ -405,8 +401,13 @@ class EvolutionaryMethods():
         max_ind_evals += ( individual._fitness_evaluations_max - individual._fitness_evaluations_min ) * ( individual._fitness_relative_adult**2.718281 )
         if individual._fitness_relative_adult == 1 or individual._fitness_absolute == 1:
             max_ind_evals = max_ind_evals ** 2  
+            
         if individual._fitness_evaluations >= max_ind_evals:
+            if random.random() <= p:       
+                individual.reward_subitem("individual.%s.compiler"    % individual.individual_id, individual._fitness_relative_adult)
+                individual.reward_subitem("individual.%s.matemutator" % individual.individual_id, individual._fitness_relative_adult)
             individual.die()
+            
                         
     @staticmethod
     def afterIndividualDeath(individual):   
@@ -425,7 +426,7 @@ class EvolutionaryMethods():
         if population_individuals_created % 10000 == 0: 
             print("population %s %s inds created" % ( population.population_id, population_individuals_created))
         
-        if species_individuals_created % (250*1000) == (125*1000):   # on every x th ind created in species kill/recreate worst population from local species
+        if species_individuals_created % (200*1000) == (100*1000):   # on every x th ind created in species kill/recreate worst population from local species
             species = RedisSpecies(population.species_id)
             worst_population_id = int(redisconnection.zrange("species.%s.populations.byBestFitness" % population.species_id, 0, 0)[0])
             worst_population = RedisPopulation(population.species_id, worst_population_id)
@@ -448,7 +449,7 @@ class EvolutionaryMethods():
                         break
                     print(tries)
                 
-        if species_individuals_created % (500*1000) == 0:   # on every x th ind created in species kill/recreate worst population from p2p 
+        if species_individuals_created % (400*1000) == 0:   # on every x th ind created in species kill/recreate worst population from p2p 
             species = Species.objects.get(id = population.species_id)
             if species.useP2P == True:
                 max_populationsize = int(redisconnection.get("species.%s.max_populationsize" % population.species_id))
@@ -593,7 +594,6 @@ class EvolutionaryMethods():
             
         tomanychars = len(code) - max_code_length
         if tomanychars > 0:
-            #print("delete %s chars" % tomanychars)
             new_code_list = list(code)
             new_code_len = len(new_code_list)
             while tomanychars > 0:
