@@ -1,4 +1,3 @@
-
 import redis
 import random
 import re
@@ -30,16 +29,31 @@ class ByteFuckHelpers():
         l  1100 (cm, pm) # local perm memory to char memory
         r  1000 (cm) # random char to char memory
         i  0001 (im) # move left in input memory
-         
-        >>,+.<pp>plpi>[r] 
+        0-9A-Z add number to mem char
+        M Marks the current cell as the cell to use as the 'storage' cell defined in extended type I.
+        m // Resets the storage cell to the initial storage cell.
 
+        '$': // Overwrites the byte in storage with the byte at the pointer.
+        '!': // Overwrites the byte at the pointer with the byte in storage.
+        '~': // Performs a bitwise NOT operation on the byte at the pointer (all 1's and 0's are swapped).
+        '^': // Performs a bitwise XOR operation on the byte at the pointer and the byte in storage, storing its result in the byte at the pointer.
+        '&': // Performs a bitwise AND operation on the byte at the pointer and the byte in storage, storing its result in the byte at the pointer.
+        '|': // Performs a bitwise OR operation on the byte at the pointer and the byte in storage, storing its result in the byte at the pointer.
+        '*': // Multiplies the byte at the pointer with the byte in storage, storing its result in the byte at the pointer.
+        '/': // Divides the byte at the pointer with the byte in storage, storing its result in the byte at the pointer.
+        '=': // Adds the byte at the pointer with the byte in storage, storing its result in the byte at the pointer.
+        '_': // Subtracts the byte at the pointer with the byte in storage, storing its result in the byte at the pointer.
+        '%': // Preforms a Modulo operation on the byte at the pointer and the byte in storage, storing its result in the byte at the pointer.
+        ':': // Moves the pointer forward or back by the signed number at the current cell. So a cell value of 5, moves the pointer ahead 5 places, where as 251 (signed -5) would move the pointer back 5 places. This is useful for simple variable determining pointer movement.
+         'o':  // outputbuffer 1 to left
+        'N' // No OP
         '''
         def __init__(self):
             self.bytefuckchars = b",.<>+-[]pPslri0123456789"
             self.bytefuckchars_re = re.compile(b'[^\,\.\<\>\+\-\[\]pPslri]')
             
-            self.bytefuckchars = b",.<>+-[]"
-            self.bytefuckchars_re = re.compile(b'[^\,\.\<\>\+\-\[\]]')
+            self.bytefuckchars = b",.<>+-[]pPslri0123456789ABCDEFMmN$!~^&|*/=_%:o"
+            self.bytefuckchars_re = re.compile(b'[^\,\.\<\>\+\-\[\]pPslri0123456789ABCDEFMmoN\$\!\~\^\&\|\*\/\=\_\%\:]')
             
             self.toremoves = [
                 [  
@@ -308,18 +322,32 @@ mandelbrot = '''+++++++++++++[->++>>>+++++>++>+<<<<<<]>>>>>++++++>--->>>>>>>>>>+
 +[-[->>>>>>>>>+<<<<<<<<<]>>>>>>>>>]>>>>>->>>>>>>>>>>>>>>>>>>>>>>>>>>-<<<<<<[<<<<
 <<<<<]]>>>]'''
 
-bytefuck = Bytefuck()
+type3 = ">5--------.7-----------.+++++++..+++.<2.5+++++++.>.+++.------.--------.2+."
+sub_ = "+>+++_<.>."  # [1, 3] > [1, 2] 
+add_ = "+>+++=<.>."  # [1, 3] > [1, 4] 
+not_ = "+~."  # [1] > fe
+mod_ = ">+++%."  # [1] > fe
+test1 = "$!42*8l<!P|D[-/8oD>BF9=pr*7lDFE[Cl6A,$6]i/&0s&E-5!-|6i8,o|D$mF^73o+F4F=*~4BsD.]BMpm[+F<CEr%F7:9*r11MC|6*sp-.0!BF8s9<^77.1|$m&66,*2,CF~^lm!9F=0<.PFB4!4C%10A%1BCCEE/*92$4$<472|7B[ir_[/PB23:23/:4|$_B.F4|CPr9*!MlC3$P|8Erm1D59=p+A.!l:l|![i,^op9Ms.=4~[[F,,*7DA[+/5*.&,FM,Fp$>$]i_&^48,mr"
+test2 = "E~s3|6F]%6>7<7^901+>&p,s+$<9_-<+M//8pi668|<+57!_D33+25!8_%As:,0-2m*sCpsp0m:Fs&r9%|7!-|_l6E7D0$4*>9+M3mAB/8.15<Ail~.>/,&%Dr6$D|,[!/9!5>3i07$71|s_7l.!imlmP!E-|AC5s->:05$*_87C:s!-_A2p4o$0o!]oD1p=E/]Ap3$6iE6&2E|Am91]$B$/[7l5*&FPi4.>:D/i:_2PA.Ps*]%-C!*+!l/p*DA10*P|/+[2%E[8MP<M9so<+~0FM<M0-|/%94=C:+M|$8/*,l&-B55[C8l-_*6l4-MmM"
+
+bytefuck = Bytefuck() 
 try:    
     code = sys.argv[1]
 except:
     code = None
     
 if __name__ == "__main__":
-    print("1: %s" % bytefuck.execute(helloworld1,""))
-    print("2: %s" % bytefuck.execute(helloworld2,""))
-    print("3: %s" % bytefuck.execute(helloworld3,""))
-    print("4: %s" % bytefuck.execute(helloworld4,""))
+    #print("1: %s" % bytefuck.execute(helloworld1,""))
+    #print("2: %s" % bytefuck.execute(helloworld2,""))
+    #print("3: %s" % bytefuck.execute(helloworld3,""))
+    #print("4: %s" % bytefuck.execute(helloworld4,""))
+    print("mod_: %s" % bytefuck.execute(mod_,""))
+    print("sub_: %s" % bytefuck.execute(sub_,""))
+    print("add_: %s" % bytefuck.execute(add_,""))
+    print("not_: %s" % bytefuck.execute(not_,""))
+    print("test1: %s" % bytefuck.execute(test1,""))
+    print("test2: %s" % bytefuck.execute(test2,""))
     if code != None:    
         print("code: %s" % bytefuck.execute(code,inputbytes))
-    print(bytefuck.execute(mandelbrot,""))
+    #print(bytefuck.execute(mandelbrot,""))
 

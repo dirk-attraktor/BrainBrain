@@ -21,7 +21,52 @@ from brainlogic.EvolutionApi import Evolution
 from brainlogic.EvolutionApi import EvolutionTraining
 from brainlogic.EvolutionApi import EvolutionReplacement
 
-DEFAULT_TRAIN_STEPS = 25000
+DEFAULT_TRAIN_STEPS = 15000
+
+def trainMemory(species_name, problemdefinition):
+    evolution = EvolutionTraining(
+        species_name = species_name, 
+        problem_name =   problemdefinition["problem_name"], 
+        problem_description =  problemdefinition["problem_description"],
+        
+        max_populations = 10 , # max number of parallel populations
+        min_populationsize = 200, # min number of living individuals per population, create random inds if lower
+        max_populationsize = 250, # max number of living individuals per population
+        min_code_length = 10, #
+        max_code_length = 300, #
+        max_compiled_code_length = 300, #
+        min_fitness_evaluations = 3, #
+        max_fitness_evaluations = 14, #          
+        max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
+        max_permanent_memory = 100, # max perm memory stored in             
+        max_steps = 10 * 1000 * 1000, # executed steps of code per individual 
+        useP2P = True,
+        warmup = False,
+    )
+    nrof_bytes_to_remember = problemdefinition["bytes_to_remember"]
+    for _ in range(0,DEFAULT_TRAIN_STEPS):
+        selected_individual = evolution.get_random_individual()
+        fitness = 0
+        count = 0
+        for _ in range(0,1):
+            # -> in [0 , byte0, byte1, ..] -> out ""
+            # -> in [1 , index,index]  -> out  in[index,index]
+            bytes_to_remember = bytes([0] + [random.randint(0,255) for _ in range(0,nrof_bytes_to_remember)])
+            selected_individual.execute(bytes_to_remember)
+            indexes_to_recall = [random.randint(0,nrof_bytes_to_remember-1) for _ in range(0,nrof_bytes_to_remember)]
+            target_output_bytes = bytes([bytes_to_remember[indexes_to_recall[index]+1] for index in range(0,nrof_bytes_to_remember)])
+            #print(bytes_to_remember)
+            #print(indexes_to_recall)
+            #print(target_output_bytes)
+            recalled_bytes = selected_individual.execute(bytes([1] + indexes_to_recall))[0:nrof_bytes_to_remember*5]
+            fitness += SequenceMatcher(None, recalled_bytes, target_output_bytes).ratio()
+            fitness += reward.absolute_distance_reward(recalled_bytes,target_output_bytes,256)
+            count += 2
+        fitness /= count
+        selected_individual.addFitness(fitness)     
+
+    evolution.save()
+    evolution.close()
 
 def trainByExample(species_name, problemdefinition):
     evolution = EvolutionTraining(
@@ -36,9 +81,9 @@ def trainByExample(species_name, problemdefinition):
         max_code_length = 300, #
         max_compiled_code_length = 300, #
         min_fitness_evaluations = 3, #
-        max_fitness_evaluations = 15, #          
+        max_fitness_evaluations = 14, #          
         max_memory = 1000 * 1000, # max memory positions per memory type (char, int, float)
-        max_permanent_memory = 1000, # max perm memory stored in             
+        max_permanent_memory = 0, # max perm memory stored in             
         max_steps = 10 * 1000 * 1000, # executed steps of code per individual 
         useP2P = True,
         warmup = False,
@@ -94,6 +139,23 @@ for data2data_testcase in data2data_testcases.task_mapping.keys():
             },
         ],
     })    
+    
+# train permanent memory
+for bytes_to_remember in range(1,4):
+    pname = "remember %s bytes" % bytes_to_remember
+    training_problems.append({
+        "species_name" : pname,
+        "problemdefinitions" : [
+            {
+                "problem_name" : pname,
+                "problem_description" : pname,
+                "bytes_to_remember" : bytes_to_remember,
+                "trainingfunction" : trainMemory,
+            },
+        ],
+    }) 
+      
+    
 '''
 training_problems.append({
     "species_name" : "my-testcase add/sub 2 integer",
@@ -113,6 +175,7 @@ training_problems.append({
     ],
 })  
   '''
+
 
 def run_training_problem(training_problem):
     species_name = training_problem["species_name"]

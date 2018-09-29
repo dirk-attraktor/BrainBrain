@@ -251,7 +251,7 @@ class RedisIndividual():
     def execute(self, inputbytes):
         if self._compile() == False:
             return b""
-            
+        #print(redisconnection.get("individual.%s.code_compiled" % self.individual_id))
         instanceid = random.randint(0,100*1000*1000*1000)
         redisconnection.set("instance.%s.individual_id" % instanceid, self.individual_id)
         redisconnection.set("instance.%s.input" % instanceid, inputbytes)

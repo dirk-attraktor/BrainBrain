@@ -147,26 +147,27 @@ createIndividual_lua_script = redisconnection.register_script("""
     redis.call('ZADD', 'population.' .. population_id .. '.individuals.allByTimespend', 0, individual_id) 
     redis.call('ZADD', 'population.' .. population_id .. '.individuals.allByFitnessEvaluations', 0, individual_id) 
     
-    redis.call('SET', individualid .. '.matemutator'    , matemutator_id) 
+    redis.call('SET', individualid .. '.matemutator', matemutator_id) 
     redis.call('SET', individualid .. '.species'    , species_id) 
     redis.call('SET', individualid .. '.population' , population_id) 
     redis.call('SET', individualid .. '.code'       , code) 
     redis.call('SET', individualid .. '.alive'      , 1) 
     
-    redis.call('INCR', 'species.' ..  species_id .. '.individuals_created')  
+    redis.call('INCR', 'species.'    ..  species_id .. '.individuals_created')  
     redis.call('INCR', 'population.' .. population_id .. '.individuals_created')  
-    local individuals_created_species    = tonumber(redis.call('GET','species.' .. species_id .. '.individuals_created'))
-    local individuals_created_population = tonumber(redis.call('GET','population.' .. population_id .. '.individuals_created'))
     
     redis.call('INCR',   'stats.individuals_created.global.' .. timestamp)
     redis.call('EXPIRE', 'stats.individuals_created.global.' .. timestamp, 3600*72)  
-
     redis.call('INCR',   'stats.individuals_created.species.' .. species_id .. '.' .. timestamp)
     redis.call('EXPIRE', 'stats.individuals_created.species.' .. species_id .. '.' .. timestamp, 3600*72)  
-
     redis.call('INCR',   'stats.individuals_created.population.' .. population_id .. '.' .. timestamp)
     redis.call('EXPIRE', 'stats.individuals_created.population.' .. population_id .. '.' .. timestamp, 3600*72)  
 
+    
+    
+    local individuals_created_species    = tonumber(redis.call('GET','species.' .. species_id .. '.individuals_created'))
+    local individuals_created_population = tonumber(redis.call('GET','population.' .. population_id .. '.individuals_created'))
+    
     return { 
             tostring(individuals_created_species),
             tostring(individuals_created_population),
@@ -243,10 +244,9 @@ processExecutionInstance_lua_script = redisconnection.register_script("""
         local memory_usage = redis.call('GET', instanceid .. '.memory_usage') 
         redis.call('INCRBY', individualid .. '.memory_usage', memory_usage ) 
         
-        local execution_time_individual = redis.call('GET', individualid .. '.execution_time') 
-        redis.call('ZADD', 'population.' .. population_id .. '.individuals.allByTimespend', execution_time_individual, individual_id )
-        
         local execution_time_population =  redis.call('GET', populationid .. '.timespend_total')
+        local execution_time_individual = redis.call('GET', individualid .. '.execution_time')         
+        redis.call('ZADD', 'population.' .. population_id .. '.individuals.allByTimespend', execution_time_individual, individual_id )
         redis.call('ZADD', 'species.' .. species_id .. '.populations.byTimespend', execution_time_population, population_id ) 
         
     end           
