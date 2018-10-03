@@ -69,6 +69,8 @@ class Species(models.Model ):
     
     useP2P = models.BooleanField(default=False)
 
+    solved = models.BooleanField(default=False)
+
     max_populations =  models.BigIntegerField(default = 10)  # max number of parallel populations
     max_populationsize =  models.BigIntegerField(default = 100)  # max number of living individuals per population
     min_populationsize =  models.BigIntegerField(default = 50)  # max number of living individuals per population
@@ -79,13 +81,15 @@ class Species(models.Model ):
     max_fitness_evaluations =  models.BigIntegerField(default = 100) 
     min_fitness_evaluations =  models.BigIntegerField(default =  10)
     
-    
     max_memory =  models.BigIntegerField(default = 20) #
     max_permanent_memory =  models.BigIntegerField(default = 20) #
     
     max_steps =  models.BigIntegerField(default = -1) 
  
     individuals_created =  models.BigIntegerField(default = 0) 
+
+    sync_cross_population_at =  models.BigIntegerField(default = 100000) #
+    sync_cross_p2p_at        =  models.BigIntegerField(default = 200000) #
 
     reference_function_rate =  models.FloatField(default =  0)
     # -> populations
@@ -97,6 +101,9 @@ class Species(models.Model ):
     def __str__(self):
         return "Species: %s" % self.name
 
+    def is_loaded_to_redis(self):
+        return redisconnection.get("species.%s.max_populations" % self.id) != None
+        
     def to_redis(self):
         pipe = redisconnection.pipeline()
         for param in [
@@ -112,6 +119,8 @@ class Species(models.Model ):
             "max_permanent_memory",
             "max_steps",
             "individuals_created",
+            "sync_cross_population_at",
+            "sync_cross_p2p_at",
             ]:
             key = "species.%s.%s" % (self.id, param)
             value = getattr(self, param)
@@ -129,8 +138,11 @@ class Species(models.Model ):
         cnt = 0
         s = 0
         max_pop_fitnesses = []
+        self.solved = False
         for population in self.populations.all():
             population.from_redis()
+            if population.solved == True:
+                self.solved = True
             ids_scores = redisconnection.zrange("population.%s.individuals.adultsByFitness" % population.id, 0, -1, withscores = True)
             fitnesses = [ float(x[1]) for x in ids_scores]
             try:
@@ -152,6 +164,7 @@ class Species(models.Model ):
             
             cnt += 1
             s += avg_pop_fitness
+        self.save()            
         ti = time.time()
         now = int(ti - ti%60)
         redisconnection.set(   "stats.fitness.species.%s.%s" % ( self.id, now ), ( s / cnt ) )
@@ -177,6 +190,8 @@ class Species(models.Model ):
             "max_permanent_memory",
             "max_steps",
             "individuals_created",
+            "sync_cross_population_at",
+            "sync_cross_p2p_at",            
             ]:
             pipe.delete("species.%s.%s" % (species_id, param))
         pipe.execute()
@@ -206,12 +221,15 @@ class Population(models.Model):
     fitness_relative =  models.FloatField(default = 1)
     fitness_evaluations =  models.BigIntegerField(default = 0)
     fitness_evaluations_total =  models.BigIntegerField(default = 0)
-    
+    solved = models.BooleanField(default=False)
+
     # -> individuals
      
     class Meta:
         ordering = ["-best_individual_fitness"]
 
+    def is_loaded_to_redis(self):
+        return redisconnection.get("population.%s.timespend" % self.id) != None
         
     def getTimespendSeconds(self):
         return int(self.timespend/1000000)
@@ -285,10 +303,14 @@ class Population(models.Model):
         #print("2: %s" % time.time())
         #print("s: %s" % time.time())
         
+        
+        self.solved = False
         for individual_id in individual_ids:
             individual, created  = Individual.objects.get_or_create(id=individual_id,population=self)
             success = individual.from_redis(self.id, individual_id)
             if success == True:
+                if individual.fitness_evaluations >= self.species.max_fitness_evaluations and individual.fitness == 1:
+                    self.solved = True
                 individuals.append(individual)
         #print("3: %s" % time.time())                
         #print("e: %s" % time.time())                

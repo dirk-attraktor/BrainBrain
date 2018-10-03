@@ -12,17 +12,19 @@
 
 
 {% block content %}
+
+<script>
+$(document).ready(function() {
+    $('#example2').DataTable( {
+         "pageLength": 1000,
+         "bLengthChange": false
+
+    } );
+} );
+</script>
     <div class="row">
         <div class="col-md-12">
             <div class="box">
-                <div class="box-header">
-                    <h3 class="box-title">{% block boxHeader %}{% endblock %}{{problems|length}}</h3>
-                    <div class="pull-right box-tools">
-                        <a href="{% block boxHeaderCreateUrl %}{% endblock %}">
-                            <button type="button" class="btn btn-default pull-right" style="padding: 4px 8px;"><i class="fa fa-plus"></i> Create </button>
-                        </a>
-                    </div>
-                </div>
                 <div class="box-body">
                     <div id="example2_wrapper" class="dataTables_wrapper form-inline dt-bootstrap">
                         <div class="row">
@@ -38,7 +40,10 @@
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Id</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Problem Name</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> ReferenceFunctions</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Best Species population</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Species</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Solved</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Working</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Best Population</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Actions</th>
                                         </tr>
                                     </thead>
@@ -52,16 +57,36 @@
                                                             <a href="/referencefunction/{{referencefunction.id}}">{{ referencefunction.name }} {{referencefunction.fitness }}</a><br>
                                                         {% endfor %}  
                                                     </td>
+        
+                                                    {% with problem.species.all as allspecies %}     
+                                                        <td> 
+                                                            {% for species in allspecies %}
+                                                                <a href="/species/{{species.id }}">Species: {{species.name }}</a>
+                                                            {% endfor %}
+                                                        </td>
+                                                        <td> 
+                                                            {% for species in allspecies %}
+                                                                <span  style="background-color:{% if species.solved %} lightgreen {% endif %}">{{ species.solved }}</span>
+                                                            {% endfor %}
+                                                        </td>
+                                                        <td> 
+                                                            {% for species in allspecies %}
+                                                                <span  style="background-color:{% if species.is_loaded_to_redis %} lightgreen {% endif %}">{{species.is_loaded_to_redis }}</span>
+                                                            {% endfor %}
+                                                        </td>
+                                                        <td>  
+                                                            {% for species in allspecies %}
+                                                                <a href="/population/{{species.populations.all.0.id }}">
+                                                                Pop: {{species.populations.all.0.id }} 
+                                                                Best: {{species.populations.all.0.best_individual_fitness }}
+                                                            </a>
+                                                            {% endfor %}
+                                                        </td>
+                                                       
+                                                    {% endwith %}
                                                     <td>
-                                                        {% for species in problem.species.all %}
-                                                            <a href="/species/{{species.id }}">Species: {{species.name }}</a> |
-                                                            <a href="/population/{{species.populations.all.0.id }}">Population: {{species.populations.all.0.id }} BestFitness: {{species.populations.all.0.best_individual_fitness }}</a><br>
-                                                        {% endfor %}  
+                                                        <a href="/problem/{{ problem.id }}">Edit</a>
                                                     </td>
-                                                
-                                                <td>
-                                                    <a href="/problem/{{ problem.id }}">Edit</a>
-                                                </td>
                                                                   
                                             </tr>
                                         {% endfor %}

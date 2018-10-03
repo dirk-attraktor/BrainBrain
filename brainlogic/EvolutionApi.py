@@ -96,8 +96,10 @@ class Evolution():
             reference_functions = [],
             reference_function_rate = 0,
             
+            sync_cross_population_at =  100010,
+            sync_cross_p2p_at        =  200000,
+
         ):
-                
         try:
             self.djangospecies = Species.objects.get(name = species_name)
             print("special loaded")
@@ -120,6 +122,10 @@ class Evolution():
         
         self.djangospecies.max_steps =  max_steps
         self.djangospecies.useP2P = useP2P
+        if sync_cross_population_at % 10 != 0 or sync_cross_p2p_at % 10 != 0:
+            raise Exception("sync_cross_population_at % 10 != 0 or sync_cross_p2p_at % 10 != 0")
+        self.djangospecies.sync_cross_population_at = sync_cross_population_at
+        self.djangospecies.sync_cross_p2p_at = sync_cross_p2p_at
         
         self.djangospecies.reference_function_rate =  reference_function_rate
        
@@ -129,6 +135,9 @@ class Evolution():
             pop = Population()
             pop.species = self.djangospecies
             pop.save()
+        while self.djangospecies.populations.count() > max_populations:
+            print("Delete Population")
+            self.djangospecies.populations.all()[self.djangospecies.populations.count()-1].delete()
             
         try:
             self.problem = Problem.objects.get(name = problem_name)
@@ -139,8 +148,15 @@ class Evolution():
             self.problem.description = problem_description
             self.problem.save()
             print("create problem %s" % self.problem)
-        self.djangospecies.problems.add(self.problem)
+        for _ in range(0,20):
+            try:
+                self.djangospecies.problems.add(self.problem)
+                break
+            except:
+                print("FAILED TO SAVE")
+                time.sleep(3)
         self.djangospecies.save()
+                    
         print("LOADING django species")
         print(self.djangospecies.id)
         self.species = RedisSpecies(self.djangospecies.id)
@@ -172,10 +188,7 @@ class Evolution():
         else:
             return self.species.get_random_individual()
                 
-    def save(self):
-        if self != evolutionCompiler and self != evolutionMateMutate:
-            evolutionCompiler.save()
-            evolutionMateMutate.save()            
+    def save(self):          
         self.species.save_to_django()
         for reference_function in self.reference_functions:
             reference_function.save_to_django()
@@ -322,7 +335,10 @@ evolutionMateMutate = Evolution(
     reference_functions = [
         { "name" : "evolutionMateMutateReference" , "function" : evolutionMateMutateReference },
     ],
-    reference_function_rate = 0.2,
+    reference_function_rate = 0.1,
+    
+    sync_cross_population_at =   80000,
+    sync_cross_p2p_at        =  170000,
 )
 
 def evolutionCompilerReference(code):
@@ -352,8 +368,11 @@ evolutionCompiler = Evolution(
     reference_functions = [
         { "name" : "evolutionCompilerReference" , "function" : evolutionCompilerReference },
     ],
-    reference_function_rate = 0.2,
-)     
+    reference_function_rate = 0.1,
+    
+    sync_cross_population_at =   80000,
+    sync_cross_p2p_at        =  170000,
+)
 
 
 class EvolutionaryMethods():
@@ -427,60 +446,65 @@ class EvolutionaryMethods():
         if population_individuals_created % 10000 == 0: 
             print("population %s %s inds created" % ( population.population_id, population_individuals_created))
         
-        if species_individuals_created % (200*1000) == (100*1000):   # on every x th ind created in species kill/recreate worst population from local species
-            species = RedisSpecies(population.species_id)
-            worst_population_id = int(redisconnection.zrange("species.%s.populations.byBestFitness" % population.species_id, 0, 0)[0])
-            worst_population = RedisPopulation(population.species_id, worst_population_id)
-            max_populationsize = int(redisconnection.get("species.%s.max_populationsize" % population.species_id))
-            min_populationsize = int(redisconnection.get("species.%s.max_populationsize" % population.species_id))
-            print("Mass killing worst population %s from species %s " % (worst_population_id, population.species_id))
-            new_individual_ids = []
-            for i in range(0, max_populationsize ):
-                for tries in range(0,30):
-                    individual_to_kill = worst_population.get_random_individual(biased=False)
-                    if individual_to_kill not in new_individual_ids:
-                        redis_lua_scripts.die(individual_to_kill.species_id, individual_to_kill.population_id, individual_to_kill.individual_id) #use diretct method here to not tigger afterIndividualDeath()
-                        break
-                for tries in range(0,10):
-                    individual1 = species.get_random_individual(biased=False)
-                    individual2 = species.get_random_individual(biased=False)
-                    new_individual_id = EvolutionaryMethods._mate_mutate_indivials(worst_population, [ individual1.individual_id, individual2.individual_id])
-                    if new_individual_id != None:
-                        new_individual_ids.append(new_individual_id)
-                        break
-                    print(tries)
-                
-        if species_individuals_created % (400*1000) == 0:   # on every x th ind created in species kill/recreate worst population from p2p 
-            species = Species.objects.get(id = population.species_id)
-            if species.useP2P == True:
-                max_populationsize = int(redisconnection.get("species.%s.max_populationsize" % population.species_id))
-                problem_names = [n for n in species.problems.all().values_list('name', flat=True)]
-                problem_names = random.sample(problem_names, min([len(problem_names), 5]))
-                requests = min([int(max_populationsize / 2 / len(problem_names) / 5), 20])
-                inds = []
-                for problem_name in problem_names:
-                    p2p_inds = brainP2Pclient.getIndividuals( problem_name, requests = requests, limit_per_node = 5)
-                    inds.extend( p2p_inds)
-                print("%s individuals received from p2p " % len(inds))
-                
+        
+        if species_individuals_created % 10 == 0:
+            sync_cross_population_at = int(redisconnection.get("species.%s.sync_cross_population_at" % population.species_id))
+            sync_cross_p2p_at        = int(redisconnection.get("species.%s.sync_cross_p2p_at"        % population.species_id))
+
+            if species_individuals_created % sync_cross_population_at == 0:   # on every x th ind created in species kill/recreate worst population from local species
+                species = RedisSpecies(population.species_id)
                 worst_population_id = int(redisconnection.zrange("species.%s.populations.byBestFitness" % population.species_id, 0, 0)[0])
                 worst_population = RedisPopulation(population.species_id, worst_population_id)
+                max_populationsize = int(redisconnection.get("species.%s.max_populationsize" % population.species_id))
+                min_populationsize = int(redisconnection.get("species.%s.max_populationsize" % population.species_id))
+                print("Mass killing worst population %s from species %s " % (worst_population_id, population.species_id))
                 new_individual_ids = []
-                for ind in inds:
+                for i in range(0, max_populationsize ):
                     for tries in range(0,30):
                         individual_to_kill = worst_population.get_random_individual(biased=False)
                         if individual_to_kill not in new_individual_ids:
                             redis_lua_scripts.die(individual_to_kill.species_id, individual_to_kill.population_id, individual_to_kill.individual_id) #use diretct method here to not tigger afterIndividualDeath()
-                            print("kill non p2p ind")
                             break
-                    individual_id = random.randint(1000,individual_id_range)  
-                    new_individual_ids.append(individual_id)       
-                    print("created ind from p2p")
-                    try:
-                        decoded = binascii.a2b_qp(ind["code"])
-                        redis_lua_scripts.createIndividual( worst_population.species_id, worst_population.population_id, individual_id, "", decoded )
-                    except Exception as e:
-                        print("Decode failed: %s" % e)
+                    for tries in range(0,10):
+                        individual1 = species.get_random_individual(biased=False)
+                        individual2 = species.get_random_individual(biased=False)
+                        new_individual_id = EvolutionaryMethods._mate_mutate_indivials(worst_population, [ individual1.individual_id, individual2.individual_id])
+                        if new_individual_id != None:
+                            new_individual_ids.append(new_individual_id)
+                            break
+                        print(tries)
+                    
+            if species_individuals_created % sync_cross_p2p_at == 0:   # on every x th ind created in species kill/recreate worst population from p2p 
+                species = Species.objects.get(id = population.species_id)
+                if species.useP2P == True:
+                    max_populationsize = int(redisconnection.get("species.%s.max_populationsize" % population.species_id))
+                    problem_names = [n for n in species.problems.all().values_list('name', flat=True)]
+                    problem_names = random.sample(problem_names, min([len(problem_names), 5]))
+                    requests = min([int(max_populationsize / 2 / len(problem_names) / 5), 20])
+                    inds = []
+                    for problem_name in problem_names:
+                        p2p_inds = brainP2Pclient.getIndividuals( problem_name, requests = requests, limit_per_node = 5)
+                        inds.extend( p2p_inds)
+                    print("%s individuals received from p2p " % len(inds))
+                    
+                    worst_population_id = int(redisconnection.zrange("species.%s.populations.byBestFitness" % population.species_id, 0, 0)[0])
+                    worst_population = RedisPopulation(population.species_id, worst_population_id)
+                    new_individual_ids = []
+                    for ind in inds:
+                        for tries in range(0,30):
+                            individual_to_kill = worst_population.get_random_individual(biased=False)
+                            if individual_to_kill not in new_individual_ids:
+                                redis_lua_scripts.die(individual_to_kill.species_id, individual_to_kill.population_id, individual_to_kill.individual_id) #use diretct method here to not tigger afterIndividualDeath()
+                                print("kill non p2p ind")
+                                break
+                        individual_id = random.randint(1000,individual_id_range)  
+                        new_individual_ids.append(individual_id)       
+                        print("created ind from p2p")
+                        try:
+                            decoded = binascii.a2b_qp(ind["code"])
+                            redis_lua_scripts.createIndividual( worst_population.species_id, worst_population.population_id, individual_id, "", decoded )
+                        except Exception as e:
+                            print("Decode failed: %s" % e)
                         
     @staticmethod
     def onPopulationsizeUnderflow(population):
@@ -620,6 +644,13 @@ class EvolutionaryMethods():
             
 brainlogic.redis_models.evolutionaryMethods = EvolutionaryMethods
 
-  
-     
+def tf():  
+    while True:
+        time.sleep(random.randint(60*10,60*40))
+        evolutionCompiler.save()
+        evolutionMateMutate.save()  
+        
+t = threading.Thread(target=tf)
+t.daemon = True
+t.start()          
      

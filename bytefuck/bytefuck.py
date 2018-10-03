@@ -1,3 +1,5 @@
+
+
 import redis
 import random
 import re
@@ -9,6 +11,32 @@ redisconnection = redis.StrictRedis(unix_socket_path='/var/run/redis/redis.sock'
 class ByteFuckHelpers():
         
         '''
+            Memory                          |       Action      |   ,   |   .   |   <   |   >   |   +   |   -   |   [   |   ]   |
+                                            |
+        memory_char                         |       read        |           x                       x       x
+        memory_char                         |       write       |   x                               x       x
+        memory_char_position                |       read        |   x       x       x       x       x       x
+        memory_char_position                |       write       |                   x       x
+        
+        memory_char_permanent               |       read        |
+        memory_char_permanent               |       write       |
+        memory_char_permanent_position      |       read        |
+        memory_char_permanent_position      |       write       |
+        
+        inputbuffer                         |       read        |   x
+        inputbuffer                         |       write       |
+        inputbuffer_position                |       read        |   x
+        inputbuffer_position                |       write       |   x
+        
+        outputbuffer                        |       read        |
+        outputbuffer                        |       write       |           x
+        outputbuffer_position               |       read        |           x
+        outputbuffer_position               |       write       |           x
+        
+        storage_cell                        |       read        |
+        storage_cell                        |       write       |
+        
+        
         bytefuck change groups
          input memory  (im) 0
          output memory (om) 1
@@ -29,7 +57,10 @@ class ByteFuckHelpers():
         l  1100 (cm, pm) # local perm memory to char memory
         r  1000 (cm) # random char to char memory
         i  0001 (im) # move left in input memory
-        0-9A-Z add number to mem char
+        0  set cell to 0
+        1  set cell to 64
+        2  set cell to 256
+        
         M Marks the current cell as the cell to use as the 'storage' cell defined in extended type I.
         m // Resets the storage cell to the initial storage cell.
 
@@ -52,8 +83,8 @@ class ByteFuckHelpers():
             self.bytefuckchars = b",.<>+-[]pPslri0123456789"
             self.bytefuckchars_re = re.compile(b'[^\,\.\<\>\+\-\[\]pPslri]')
             
-            self.bytefuckchars = b",.<>+-[]pPslri0123456789ABCDEFMmN$!~^&|*/=_%:o"
-            self.bytefuckchars_re = re.compile(b'[^\,\.\<\>\+\-\[\]pPslri0123456789ABCDEFMmoN\$\!\~\^\&\|\*\/\=\_\%\:]')
+            self.bytefuckchars = b",.<>+-[]pPslri012MmNxyXY$!~^&|*/=_%:o"
+            self.bytefuckchars_re = re.compile(b'[^\,\.\<\>\+\-\[\]pPslri012MmoNxyXY\$\!\~\^\&\|\*\/\=\_\%\:]')
             
             self.toremoves = [
                 [  
@@ -122,11 +153,12 @@ class Bytefuck():
         instance_id = random.randint(0,100*1000*1000*1000)
         
         individual_id = self._create_individual(code)
-        
+        redisconnection.set("individual.%s.memory" % individual_id, inputbytes)
+
         redisconnection.set("instance.%s.individual_id" % instance_id, individual_id)
         redisconnection.set("instance.%s.nolog" % instance_id,"1")
         redisconnection.set("instance.%s.input" % instance_id, inputbytes)
-
+        
         redisconnection.rpush("execute.queue", instance_id)
         # ASYNC EXECUTIONS HAPPENS HERE .. 
         done = redisconnection.blpop("instance.%s.done" %  instance_id)
@@ -322,6 +354,12 @@ mandelbrot = '''+++++++++++++[->++>>>+++++>++>+<<<<<<]>>>>>++++++>--->>>>>>>>>>+
 +[-[->>>>>>>>>+<<<<<<<<<]>>>>>>>>>]>>>>>->>>>>>>>>>>>>>>>>>>>>>>>>>>-<<<<<<[<<<<
 <<<<<]]>>>]'''
 
+
+a='^<M!*!/sM+[2:.2[.2mr%N=.2],%+<!&$[2<,>==1].2=ir.|1^>[-2pr^X2/2<[l.|+%%>-<_m%p~*=%$xMr^-$2+Ml=.+>]<[s]i[x:__[2=/%N=.2]|*%+!1$$MNP_m%1:$~or/lm+!^2]r%1,p~^=%ix1r&%~.>oN[!yN1p-N-ii$!-*x0,i.*>*0.x-$+|ol!*l[^]o[/,&]2or|yYX2%+],rM]N%.:$*N=i<ry*%2[[!^%y'
+b='$[~o]^_<21y%PP/X<.&1$lp~r-|1o_Y!~Xx$sY%2o!>o~YMl2p%p.2x&.&>.om%&_0~p*o1N,1=%m:/rp:|~sNlomY|*x0Y+|-P=+%~P1mPm2~%Y_!1]+<pM-M..-2N|2/l1!>!r0P<*y/|-s<,0%+|0^oro=si|:%/Nl2iso+xxp$<*XsMi[py::/P]l+Py%r<%r+Mm[.lMY--.:pM&:2p0]+>,.:=<-|]|*:>%i:_<]/<+p:/y+/</_0|Nm*P^!.[$YM<!M_<[:s!,!$%&*,-./012:<=>MNPXY^_ilmoprsxy|~!$%&*,-./012:<=>MNP'
+c='Pi|[/y:N~1r[<m.[imr!sr_l=s-~$=1i+>P>p,Yy]P_P<:]&$|<Yoropy_i~_*0-:0x2x*!>-/~~+=+xYom=|N:[X+|i-o:p.=&l&m<y&+~r/sp/!r^Msp&*y!]m!-$No2:x!|p&:2=!Y/,_1i>,|_^:^!%MN!si![==~o0&o]p_1.rPmyxM:Nm1=_m]>_|&.$s0s:0p<[r<ym:.M=Xy!^YM|02N/ri*,<i<X/_,~>%r!&.r*-xli~.!XMpYx2.p=.,_xm1!p!&P1|s>=]]/&yy2'
+d='^<M!*!/sM+[2:.2[.2mr%N=.2],%+<!&$[2<,>==1].2=ir.|1^>[-2pr^X2/2<[l.|+%%>-<_m%p~*=%$xMr^-$2+Ml=.+>]<[s]i[x:__[2=/%N=.2]|*%+!1$$MNP_m%1:$~or/lm+!^2]r%1,p~^=%ix1r&%~.>oN[!yN1p-N-ii$!-*x0,i.*>*0.x-$+|ol!*l[^]o[/,&]2or|yYX2%+],rM]N%.:$*N=i<ry*%2[[!^%y'
+
 type3 = ">5--------.7-----------.+++++++..+++.<2.5+++++++.>.+++.------.--------.2+."
 sub_ = "+>+++_<.>."  # [1, 3] > [1, 2] 
 add_ = "+>+++=<.>."  # [1, 3] > [1, 4] 
@@ -330,17 +368,33 @@ mod_ = ">+++%."  # [1] > fe
 test1 = "$!42*8l<!P|D[-/8oD>BF9=pr*7lDFE[Cl6A,$6]i/&0s&E-5!-|6i8,o|D$mF^73o+F4F=*~4BsD.]BMpm[+F<CEr%F7:9*r11MC|6*sp-.0!BF8s9<^77.1|$m&66,*2,CF~^lm!9F=0<.PFB4!4C%10A%1BCCEE/*92$4$<472|7B[ir_[/PB23:23/:4|$_B.F4|CPr9*!MlC3$P|8Erm1D59=p+A.!l:l|![i,^op9Ms.=4~[[F,,*7DA[+/5*.&,FM,Fp$>$]i_&^48,mr"
 test2 = "E~s3|6F]%6>7<7^901+>&p,s+$<9_-<+M//8pi668|<+57!_D33+25!8_%As:,0-2m*sCpsp0m:Fs&r9%|7!-|_l6E7D0$4*>9+M3mAB/8.15<Ail~.>/,&%Dr6$D|,[!/9!5>3i07$71|s_7l.!imlmP!E-|AC5s->:05$*_87C:s!-_A2p4o$0o!]oD1p=E/]Ap3$6iE6&2E|Am91]$B$/[7l5*&FPi4.>:D/i:_2PA.Ps*]%-C!*+!l/p*DA10*P|/+[2%E[8MP<M9so<+~0FM<M0-|/%94=C:+M|$8/*,l&-B55[C8l-_*6l4-MmM"
 
-bytefuck = Bytefuck() 
 try:    
     code = sys.argv[1]
 except:
     code = None
+import struct
     
 if __name__ == "__main__":
-    #print("1: %s" % bytefuck.execute(helloworld1,""))
-    #print("2: %s" % bytefuck.execute(helloworld2,""))
-    #print("3: %s" % bytefuck.execute(helloworld3,""))
-    #print("4: %s" % bytefuck.execute(helloworld4,""))
+    bytefuck = Bytefuck() 
+
+    for _ in range(100):
+        data = bytes([random.randint(0,255) for _ in range(0,1000000)])
+        bytefuck.execute(b"[[[[[lP>][lP>][lP>][lP>][lP>]]]]]",data)
+        bytefuck.execute(a,data)
+        bytefuck.execute(b,data)
+        bytefuck.execute(c,data)
+        bytefuck.execute(d,data)
+
+
+    for _ in range(0,99):
+        print(bytefuck.execute("->!~~&[!1i]pY*%l~MsMMM>o~X^1<m.=,2+x=|&>X_%X^.|",struct.pack("IIIIIII",random.randint(0,4000000000),random.randint(0,4000000000),random.randint(0,4000000000),random.randint(0,4000000000),random.randint(0,4000000000),random.randint(0,4000000000),random.randint(0,4000000000))))
+        print(bytefuck.execute('X^+1o//=mi==+Pmo-1^0Pxx-_l_i|r~]XP%,y,$$_-!.>/.[o.^ym=~2[X%!/]/Ns1y*!l%N,s$|0+>NxMi2|p.NoXP,!',struct.pack("IIIIIII",random.randint(0,4000000000),random.randint(0,4000000000),random.randint(0,4000000000),random.randint(0,4000000000),random.randint(0,4000000000),random.randint(0,4000000000),random.randint(0,4000000000))))
+    print(bytefuck.execute("Xiiii>>>>Y<<<<<<<<yx",struct.pack("I",1278725465)))
+    exit(0)
+    print("1: %s" % bytefuck.execute(helloworld1,""))
+    print("2: %s" % bytefuck.execute(helloworld2,""))
+    print("3: %s" % bytefuck.execute(helloworld3,""))
+    print("4: %s" % bytefuck.execute(helloworld4,""))
     print("mod_: %s" % bytefuck.execute(mod_,""))
     print("sub_: %s" % bytefuck.execute(sub_,""))
     print("add_: %s" % bytefuck.execute(add_,""))

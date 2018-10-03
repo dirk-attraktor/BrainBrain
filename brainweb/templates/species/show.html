@@ -2,7 +2,8 @@
 {% load brainweb_tags %}
 {% block content_header %}
     <section class="content-header">
-      <h1>Show Species '{{species.name}}'</h1>
+    
+      <h1>Show Species '{{species.name}}' for problems  {% for problem in species.problems.all %} <a href="/problem/{{problem.id}}">'{{problem.name}}'</a>, {% endfor %}</h1>
       <small>some empty description{{species.description}} <a href="#">Edit Description</a></small>
       <ol class="breadcrumb">
         <li><a href="/"><i class="fa fa-dashboard"></i> Home</a></li>
@@ -34,6 +35,11 @@
                             <dd>{{species.name }}</dd>
                             <dt>Individuals created</dt>
                             <dd>{{species.individuals_created }}</dd>        
+                            <br>
+                            <dt>Solved</dt>
+                            <dd>{{species.solved }}</dd>
+                            
+                            
                         </dl>
                     </div>
                 </div>
@@ -52,14 +58,18 @@
                             <dd>{{species.usePriorKnowledge}}</dd>
                             <dt>useP2P</dt>
                             <dd>{{species.useP2P}}</dd>
+                            
                             <br>
+                            
                             <dt>Max populations</dt>
                             <dd>{{species.max_populations}}</dd>
                             <dt>Min population size</dt>
                             <dd>{{species.min_populationsize}}</dd>                            
                             <dt>Max population size</dt>
                             <dd>{{species.max_populationsize}}</dd>
+                            
                             <br>
+                            
                             <dt>Min code length</dt>
                             <dd>{{species.min_code_length}}</dd>
                             <dt>Max code length</dt>
@@ -68,14 +78,21 @@
                             <dd>{{species.max_compiled_code_length}}</dd>
              
                             <br>
+                            
                             <dt>Max memory</dt>
                             <dd>{{species.max_memory}}</dd>                    
                             <dt>Max perm. memory</dt>
                             <dd>{{species.max_permanent_memory}}</dd>                    
                             <dt>Max steps</dt>
                             <dd>{{species.max_steps}}</dd>                    
+                            
+                            <br>
+                            
+                            <dt>sync_cross_population_at</dt>
+                            <dd>{{species.sync_cross_population_at}}</dd>                    
+                            <dt>sync_cross_population_at</dt>
+                            <dd>{{species.sync_cross_p2p_at}}</dd>                    
 
-                         
                         </dl>
                     </div>
                 </div>
@@ -104,22 +121,23 @@
                                     <thead>
                                         <tr role="row">
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Id</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> individuals created</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> timespend</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> timespend_total</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> fitness_evaluations)</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> fitness_evaluations_total</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Individuals</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Solved</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> created</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Alive</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> time</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> time total</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> fit. evals)</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> fit. evals total</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg code size</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg compiled code size</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg memory_size</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg comp. code size</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Best fitness </th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> rel fitness </th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg fitness </th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg fitness evaluations</th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg fitness evals</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg executions</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg program steps</th>
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg memory usage </th>
+                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg mem size</th>                                            
                                             <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg execution time</th>
                                         </tr>
                                     </thead>
@@ -129,15 +147,15 @@
                                             {% with object.stats as stats %}     
                                                 <tr>
                                                     <td><a href="/population/{{ object.id }}">{{ object.id }}</a></td>
+                                                    <td style="background-color:{% if object.solved %} lightgreen {% endif %}">{{ object.solved }}</td>
                                                     <td>{{ object.individuals_created }}</td>
+                                                    <td>{{ object.individuals.count }}</td>
                                                     <td>{{ object.timespend |format_uS2time}}</td>
                                                     <td>{{ object.timespend_total |format_uS2time }}</td>
                                                     <td>{{ object.fitness_evaluations | format_number}}</td>
                                                     <td>{{ object.fitness_evaluations_total| format_number }}</td>
-                                                    <td>{{ object.individuals.count }}</td>
                                                     <td>{{ stats.avg_code_size  | format_number }}</td>
-                                                    <td>{{ stats.avg_code_compiled_size  | format_number }}</td>
-                                                    <td>{{ stats.avg_memory_size | format_number }}</td>
+                                                    <td>{{ stats.avg_code_compiled_size  | floatformat:0 }}</td>
                                                     <td>{{ object.best_individual_fitness |floatformat:4 }}</td>
                                                     <td>{{ object.fitness_relative |floatformat:2 }}</td>
                                                     <td>{{ stats.avg_fitness |floatformat:4 }}</td>
@@ -145,6 +163,7 @@
                                                     <td>{{ stats.avg_executions | format_number }}</td>
                                                     <td>{{ stats.avg_program_steps | format_number}}</td>
                                                     <td>{{ stats.avg_memory_usage  | format_number}}</td>
+                                                    <td>{{ stats.avg_memory_size | format_number }}</td>                                                    
                                                     <td>{{ stats.avg_execution_time  | format_uS2ms }} ms</td>
                                                 </tr>
                                             {% endwith %}
@@ -161,146 +180,17 @@
     </div> <!-- /row -->
     
     
-    
-    <div class="row">
-        <div class="col-md-12"> 
-            <div class="box">
-                <div class="box-header">
-                    <h3 class="box-title">Top 10 Individuals</h3>
-                </div>
-                <div class="box-body">
-                    <div id="example2_wrapper" class="dataTables_wrapper form-inline dt-bootstrap">
-                        <div class="row">
-                            <div class="col-sm-6"></div>
-                            <div class="col-sm-6"></div>
-                        </div>
-                        <div class="row">
-                            <div class="col-sm-12">
-                                <table id="example2" class="table table-bordered table-hover dataTable" role="grid">
-                                    <thead>
-                                        <tr role="row">
-                                        
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Id</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Population</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Execution Counter</th>
+        
+    <script>
+    $(document).ready(function() {
+        $('#example2').DataTable( {
+            "order": [[ 11, "rel fitness" ]],
+             "pageLength": 1000,
+             "bLengthChange": false
 
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness Evals</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness</th>
-                                            
-                                            
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Steps</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Mem Usage</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Input Usage</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Input Size</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Output Size</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> avg Time uS</th>
-                                            
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Code length</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Code</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for object in problem.getTopIndividuals %}
-                                            <tr>
-                                                    <td><a href="/individual/{{ object.id }}">{{ object.id }}</a></td>
-                                                    <td><a href="/population/{{ object.population.id }}">{{ object.population.id }}</a></td>
-                                                    <td>{{ object.execution_counter  |floatformat:0 }}</td>
-
-                                                    <td>{{ object.fitness_evalcount |floatformat:0  }}</td>
-                                                    <td>{{ object.fitness }}</td>
-                                                    
-                                                    <td>{{ object.average_program_steps |floatformat:2 }}</td>                                                    
-                                                    <td>{{ object.average_memory_usage |floatformat:2 }}</td>
-                                                    <td>{{ object.average_inputbuffer_usage |floatformat:2 }}</td>
-                                                    <td>{{ object.average_input_size |floatformat:2 }}</td>
-                                                    <td>{{ object.average_output_size |floatformat:2 }}</td>
-                                                    <td>{{ object.average_execution_time |floatformat:2 }}</td>
-                                                    
-                                                    <td>{{ object.code_length |floatformat:0 }} </td>
-                                                    <td>{{ object.code}}</td>
-                                                <td>
-                                                </td>
-                                            </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- /.box-body -->
-            </div>            
-        </div> <!-- /col-md-12 -->
-    </div> <!-- /row -->
-    
-    
-    
-    
-    <div class="row">
-        <div class="col-md-12"> 
-          <div class="box">
-            <div class="box-header">
-                <h3 class="box-title">Reference Functions</h3>
-            </div>
-            <div class="box-body">
-                <div id="example2_wrapper" class="dataTables_wrapper form-inline dt-bootstrap">
-                    <div class="row">
-                        <div class="col-sm-6"></div>
-                        <div class="col-sm-6"></div>
-                    </div>
-                    <div class="row">
-                        <div class="col-sm-12">
-                            <table id="example2" class="table table-bordered table-hover dataTable" role="grid">
-                                <thead>
-                                    <tr role="row">
-                                    
-                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Id</th>
-                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Name</th>
-                                        
-                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness</th>
-                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Fitness Evaluations</th>
-                                        
-                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Execution Counter</th>
-                                        
-                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg. Input Size</th>
-                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg. Output Size</th>
-                                        
-                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg. Execution Time uS</th>
-                                        <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for object in problem.referencefunctions.all %}
-                                        <tr>
-                                                <td>{{ object.id }}</td>
-                                                <td>{{ object.name }}</td>
-                                                
-                                                <td>{{ object.fitness }}</td>
-                                                <td>{{ object.fitness_evalcount }}</td>
-                                                
-                                                <td>{{ object.execution_counter }}</td>
-                                                
-                                                <td>{{ object.average_input_size }}</td>
-                                                <td>{{ object.average_output_size }}</td>
-                                                
-                                                <td>{{ object.average_execution_time }}</td>
-                                            <td>
-                                                <a href="/referencefunction/{{ object.id }}/reset">Reset</a>
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-          <!-- /.box-body -->
-          </div>            
-        </div> <!-- /col-md-12 -->
-    </div> <!-- /row -->    
-              
-    
+        } );
+    } );
+    </script>   
     
     <div class="row">
         <div class="col-md-12"> 
@@ -318,6 +208,9 @@
               <div class="chart">
                 <canvas id="populationsFitness"></canvas>
                 <script>
+                
+
+                
                         var ctx = document.getElementById('populationsFitness').getContext('2d');
                         var stats =  {{stats |safe  }};
 
@@ -399,91 +292,5 @@
         </div> <!-- /col-md-12 -->
     </div> <!-- /row -->    
               
-
-    
-    
-    
-    <div class="row">
-        <div class="col-md-12"> 
-            <div class="box">
-                <div class="box-header">
-                    <h3 class="box-title">{{problem.populations.count}} Populations <a href="/problem/{{ problem.id }}/cleanup">Cleanup</a></h3>
-                </div>
-                <div class="box-body">
-                    <div id="example2_wrapper" class="dataTables_wrapper form-inline dt-bootstrap">
-                        <div class="row">
-                            <div class="col-sm-6"></div>
-                            <div class="col-sm-6"></div>
-                        </div>
-                        <div class="row">
-                            <div class="col-sm-12">
-                                <table id="example2" class="table table-bordered table-hover dataTable" role="grid">
-                                    <thead>
-                                        <tr role="row">
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Id</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Max Pop. Size</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Max Gens.</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Max Inds.</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Min code length</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Max code length</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Evolved Max code length</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Max Steps</th>
-                                            
-                                            
-                                            
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Population Size</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Generations created</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Individuals created</th>
-                                            
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Best Fitness</th>                                            
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg Fitness</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg Program Steps</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg Memory Usage</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg Inputbuffer usage</th>
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Avg Execution time</th>
-                                            
-                                            <th class="sorting" tabindex="0" rowspan="1" colspan="1"> Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for object in problem.populations.all %}
-                                            <tr>
-                                                <td><a href="/population/{{ object.id }}">{{ object.id }}</a></td>
-                                            
-                                                <td>{{ object.max_populationsize }}</td>
-                                                <td>{{ object.max_generations }}</td>
-                                                <td>{{ object.max_individuals }}</td>
-                                                <td>{{ object.min_code_length }}</td>
-                                                <td>{{ object.max_code_length }}</td>
-                                                <td>{{ object.evolved_max_code_length }}</td>
-                                                <td>{{ object.max_steps }}</td>
-                                                
-                                                <td>{{ object.individuals.count }}</td>
-                                                <td>{{ object.generation_count }}</td>
-                                                <td>{{ object.individual_count }}</td>
-                                                
-                                                <td>{{ object.best_individual_fitness }}</td>
-                                                <td>{{ object.average_fitness }}</td>
-                                                <td>{{ object.average_program_steps }}</td>
-                                                <td>{{ object.average_memory_usage }}</td>
-                                                <td>{{ object.average_inputbuffer_usage }}</td>
-                                                <td>{{ object.average_execution_time }}</td>
-                                                
-                                                <td>
-                                                    <a href="/population/{{ object.id }}/delete">Delete</a>
-                                                </td>
-                                            </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- /.box-body -->
-            </div>           
-        </div> <!-- /col-md-12 -->
-    </div> <!-- /row -->
-    
   
 {% endblock %}

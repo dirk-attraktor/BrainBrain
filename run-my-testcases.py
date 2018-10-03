@@ -10,8 +10,16 @@ import time
 from difflib import SequenceMatcher
 import gym
 import numpy
+import hashlib
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "brainweb.settings")
+import django
+django.setup()
 
 from libs import reward
+
+from brainweb.models import Species
+
 from braintrain import google_testcases
 from braintrain import simple_testcases
 from braintrain import data2data_testcases
@@ -21,7 +29,7 @@ from brainlogic.EvolutionApi import Evolution
 from brainlogic.EvolutionApi import EvolutionTraining
 from brainlogic.EvolutionApi import EvolutionReplacement
 
-DEFAULT_TRAIN_STEPS = 15000
+DEFAULT_TRAIN_STEPS = 12000
 
 def trainMemory(species_name, problemdefinition):
     evolution = EvolutionTraining(
@@ -29,7 +37,7 @@ def trainMemory(species_name, problemdefinition):
         problem_name =   problemdefinition["problem_name"], 
         problem_description =  problemdefinition["problem_description"],
         
-        max_populations = 10 , # max number of parallel populations
+        max_populations = 8 , # max number of parallel populations
         min_populationsize = 200, # min number of living individuals per population, create random inds if lower
         max_populationsize = 250, # max number of living individuals per population
         min_code_length = 10, #
@@ -42,6 +50,8 @@ def trainMemory(species_name, problemdefinition):
         max_steps = 10 * 1000 * 1000, # executed steps of code per individual 
         useP2P = True,
         warmup = False,
+        sync_cross_population_at =   80000,
+        sync_cross_p2p_at        =  170000,
     )
     nrof_bytes_to_remember = problemdefinition["bytes_to_remember"]
     for _ in range(0,DEFAULT_TRAIN_STEPS):
@@ -74,11 +84,11 @@ def trainByExample(species_name, problemdefinition):
         problem_name =   problemdefinition["problem_name"], 
         problem_description =  problemdefinition["problem_description"],
         
-        max_populations = 10 , # max number of parallel populations
+        max_populations = 8 , # max number of parallel populations
         min_populationsize = 200, # min number of living individuals per population, create random inds if lower
         max_populationsize = 250, # max number of living individuals per population
         min_code_length = 10, #
-        max_code_length = 300, #
+        max_code_length = 400, #
         max_compiled_code_length = 300, #
         min_fitness_evaluations = 3, #
         max_fitness_evaluations = 14, #          
@@ -87,8 +97,9 @@ def trainByExample(species_name, problemdefinition):
         max_steps = 10 * 1000 * 1000, # executed steps of code per individual 
         useP2P = True,
         warmup = False,
+        sync_cross_population_at =   30000,
+        sync_cross_p2p_at        =   80000,
     )
-    
     evolution.trainByExample(problemdefinition["examplesource"], maxsteps = DEFAULT_TRAIN_STEPS)
     evolution.save()
     evolution.close()
@@ -176,6 +187,12 @@ training_problems.append({
 })  
   '''
 
+training_problems = sorted(training_problems, key=lambda k: k['species_name']) 
+print("%s Problems known" % len(training_problems))
+for training_problem in training_problems:
+    print(training_problem["species_name"])
+time.sleep(2)
+
 
 def run_training_problem(training_problem):
     species_name = training_problem["species_name"]
@@ -184,8 +201,6 @@ def run_training_problem(training_problem):
     trainingfunction(species_name, selected_problemdefinition)
   
 
-[print("%s"% x)  for x in training_problems]
-print("%s Problems known" % len(training_problems))
 
 #p = [x for x in training_problems if x["species_name"] == "data2data byte from bson dict"][0]
 #p = [x for x in training_problems if x["species_name"] ==  "data2data byte at index"][0]
@@ -195,9 +210,28 @@ print("%s Problems known" % len(training_problems))
 #run_training_problem(p)
 #exit(0)
 
+max_parallel_unsolved_problems = 100
 def training_thread(nrOfTrainingRuns):
+    mtraining_problems = sorted(training_problems, key=lambda k: hashlib.md5(k['species_name'].encode()).hexdigest()) 
     while nrOfTrainingRuns > 0:
-        selected_problem = random.choice(training_problems)
+        unsolved_training_problems = []
+        solved_training_problems = []
+        for training_problem in mtraining_problems:
+            try:
+                species = Species.objects.get(name=training_problem["species_name"])
+            except:
+                species = None
+            if species == None or species.solved == False:
+                unsolved_training_problems.append(training_problem)
+            else:
+                solved_training_problems.append(training_problem)
+            if len(unsolved_training_problems) >= max_parallel_unsolved_problems * 0.9:
+                break
+                
+        if len(solved_training_problems) >  int(max_parallel_unsolved_problems * 0.1):
+            solved_training_problems = random.sample(solved_training_problems, int(max_parallel_unsolved_problems * 0.1))
+            
+        selected_problem = random.choice(unsolved_training_problems + solved_training_problems)
         print("selected_problem: %s" % selected_problem)
         run_training_problem(selected_problem)
         nrOfTrainingRuns -= 1

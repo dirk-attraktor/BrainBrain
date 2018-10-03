@@ -31,8 +31,11 @@
                             <dd>{{population.created|date:"d M. H:i" }}</dd>
                             <br>
                             
+                            <dt>Solved</dt>
+                            <dd>{{population.solved}}</dd>
+                            <br>
                             <dt>Individuals created</dt>
-                            <dd>{{population.individuals_created| format_number }}</dd>                            
+                            <dd>{{population.individuals_created| format_number }}</dd>
                             <dt>Individuals alive</dt>
                             <dd>{{population.individuals.count| format_number }}</dd>
 
@@ -40,12 +43,12 @@
                             <dt> fitness evals alive</dt>
                             <dd>{{population.fitness_evaluations  | format_number  }}</dd>
                             <dt> fitness evals total</dt>
-                            <dd>{{population.fitness_evaluations_total  | format_number  }}</dd>                            
+                            <dd>{{population.fitness_evaluations_total  | format_number  }}</dd>
                             <dt> avg Fitness evals</dt>
-                            <dd>{{population_stats.avg_fitness_evaluations  | format_number  }}</dd>                          
+                            <dd>{{population_stats.avg_fitness_evaluations  | format_number  }}</dd>
                               
                             <dt>Rel. Fitness</dt>
-                            <dd>{{population.fitness_relative  |floatformat:2  }}</dd>                               
+                            <dd>{{population.fitness_relative  |floatformat:2  }}</dd>
                             <dt>Avg. Fitness</dt>
                             <dd>{{population_stats.avg_fitness  |floatformat:4  }}</dd> 
                             <dt>Best Fitness</dt>
@@ -59,14 +62,14 @@
                             <dt> timespend total</dt>
                             <dd>{{population.timespend_total   |format_uS2time }}</dd>
                             
-                            <br>                           
+                            <br>
 
                             <dt>Avg. Program steps </dt>
                             <dd>{{population_stats.avg_program_steps  | format_number }}</dd>
                             <dt>Avg. Memory usage</dt>
                             <dd>{{population_stats.avg_memory_usage  | format_number }}</dd>
                             <dt>Avg. perm. Memory usage</dt>
-                            <dd>{{population_stats.avg_memory_size  | format_number }}</dd>                            
+                            <dd>{{population_stats.avg_memory_size  | format_number }}</dd>
                             <dt>Avg. Execution time</dt>
                             <dd>{{population_stats.avg_execution_time  |format_uS2ms }} ms</dd>
                       

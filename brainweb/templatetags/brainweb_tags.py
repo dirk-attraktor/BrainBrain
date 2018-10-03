@@ -12,7 +12,7 @@ def format_uS2time(value):
 def format_uS2ms(value):    
     if value == "":
         return ""
-    return round(value/1000.0,2)
+    return "%s" % round(value/1000.0,2)
 
     
 @register.filter

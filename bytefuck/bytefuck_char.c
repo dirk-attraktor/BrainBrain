@@ -64,12 +64,12 @@ void process( ){
     unsigned long long code_steps_executed = 0; // Exection stats tracking
     
     // MEMORY
-    int32_t memory_int        [MAX_MEMORY_SIZE] = {0};
-    int32_t  memory_int_position = 0;  // current position in memory       
-    int32_t  memory_int_used = 0;  // max memory used   
+    char memory_char        [MAX_MEMORY_SIZE] = {0};
+    int  memory_char_position = 0;  // current position in memory       
+    int  memory_char_used = 0;  // max memory used   
 
     // storage_cell
-    int32_t storage_cell = 0;
+    int storage_cell = 0;
     //int memory_int         [MAX_MEMORY_SIZE] = {0};
     //int memory_int_position = 0;  // current position in memory       
     //int memory_int_used = 0;  // max memory used   
@@ -78,22 +78,22 @@ void process( ){
     //int   memory_float_position = 0;  // current position in memory       
     //int   memory_float_used = 0;  // max memory used   
 
-    int32_t  memory_int_permanent         [MAX_MEMORY_SIZE] = {0};
-    int32_t  memory_int_permanent_loaded   = 0;  // memory size loaded from redis     
-    int32_t  memory_int_permanent_position = 0;  // current position in memory       
-    int32_t  memory_int_permanent_used     = 0;  // max memory used   
+    char memory_char_permanent         [MAX_MEMORY_SIZE] = {0};
+    int  memory_char_permanent_loaded   = 0;  // memory size loaded from redis     
+    int  memory_char_permanent_position = 0;  // current position in memory       
+    int  memory_char_permanent_used     = 0;  // max memory used   
 
-    int32_t  memory_max = 0; //  // max memory. loaded via redis
-    int32_t  memory_int_permanent_max = 0; // max permanent memory. loaded via redis
+    int  memory_max = 0; //  // max memory. loaded via redis
+    int  memory_char_permanent_max = 0; // max permanent memory. loaded via redis
     
     // INPUT
     char inputbuffer         [MAX_INPUTBUFFER_SIZE] = {0};
-    int32_t  inputbuffer_loaded   = 0;  // input bytes loaded from redis    
-    int32_t  inputbuffer_position = 0;  // current position in input data         
+    int  inputbuffer_loaded   = 0;  // input bytes loaded from redis    
+    int  inputbuffer_position = 0;  // current position in input data         
         
     // OUTPUT
     char outputbuffer[MAX_OUTPUTBUFFER_SIZE] = {0}; 
-    int32_t  outputbuffer_position = 0;  // current position in input data         
+    int  outputbuffer_position = 0;  // current position in input data         
 
     // parenthesis tracking
     int parenthesis_counter = 0; // track [ ]
@@ -112,13 +112,13 @@ void process( ){
     memset(jumpmap,     -1, sizeof(int) * MAX_CODE_SIZE );
     memset(looplimitmap, 0, sizeof(uint16_t) * MAX_CODE_SIZE );
     memset(steplimitmap, 0, sizeof(unsigned long long) * MAX_CODE_SIZE );
-    memset(memory_int,  0, sizeof(int) * MAX_MEMORY_SIZE );
+    memset(memory_char,  0, sizeof(char) * MAX_MEMORY_SIZE );
   
     while(1){
         memset(jumpmap,     -1, sizeof(int) * code_loaded + 1);
         memset(looplimitmap, 0, sizeof(uint16_t) * code_loaded + 1);
         memset(steplimitmap, 0, sizeof(unsigned long long) * code_loaded + 1);
-        memset(memory_int,  0, sizeof(int) * memory_int_used + 1);
+        memset(memory_char,  0, sizeof(char) * memory_char_used + 1);
 
         
         // BLPOP instance_id 
@@ -136,7 +136,7 @@ void process( ){
         // GET nolog parameter
         reply = redisCommand(redis_context,"GET instance.%s.nolog", instance_id );
         if (reply->type == REDIS_REPLY_STRING) { 
-            nolog = 1;
+            nolog = 1;    
         }else{
             nolog = 0;
         }  
@@ -167,12 +167,12 @@ void process( ){
         }    
         freeReplyObject(reply);
         
-        // GET memory_int_permanent and memory_int_permanent_loaded from individual
+        // GET memory_char_permanent and memory_char_permanent_loaded from individual
         reply = redisCommand(redis_context,"GET individual.%s.memory", individual_id );
         if (reply->type == REDIS_REPLY_STRING) { 
-            memory_int_permanent_loaded = reply->len/4;
-            if(memory_int_permanent_loaded > MAX_MEMORY_SIZE){ memory_int_permanent_loaded = MAX_MEMORY_SIZE; }
-            memcpy( memory_int_permanent, reply->str,  reply->len );
+            memory_char_permanent_loaded = reply->len;
+            if(memory_char_permanent_loaded > MAX_MEMORY_SIZE){ memory_char_permanent_loaded = MAX_MEMORY_SIZE; }
+            memcpy( memory_char_permanent, reply->str, memory_char_permanent_loaded );
         }    
         freeReplyObject(reply);        
         
@@ -210,9 +210,9 @@ void process( ){
         // GET max_permanent_memory from species
         reply = redisCommand(redis_context,"GET species.%s.max_permanent_memory", species_id );
         if (reply->type == REDIS_REPLY_STRING) { 
-            memory_int_permanent_max = strtoul(reply->str,NULL,10);
-            if(memory_int_permanent_max > MAX_MEMORY_SIZE){
-                memory_int_permanent_max = MAX_MEMORY_SIZE;
+            memory_char_permanent_max = strtoul(reply->str,NULL,10);
+            if(memory_char_permanent_max > MAX_MEMORY_SIZE){
+                memory_char_permanent_max = MAX_MEMORY_SIZE;
             }            
         }    
         freeReplyObject(reply);   
@@ -223,6 +223,11 @@ void process( ){
             printf("individual_id %s\n", individual_id);
             printf("inputbuffer %s\n", inputbuffer);
             printf("code %s\n", code);
+            printf("memory_char %s\n", memory_char);
+            
+            printf("memory_char_permanent_loaded %zu\n", memory_char_permanent_loaded);
+            printf("code_loaded %zu\n", code_loaded);
+            printf("memory_char_permanent_loaded %zu\n", memory_char_permanent_loaded);
             printf("code_steps_max %llu\n", code_steps_max);
        }  
         
@@ -232,11 +237,11 @@ void process( ){
         
         storage_cell = 0;
         
-        memory_int_used = 0;
-        memory_int_position = 0;  // current position in memory       
+        memory_char_used = 0;
+        memory_char_position = 0;  // current position in memory       
         
-        memory_int_permanent_used = 0;
-        memory_int_permanent_position = 0;
+        memory_char_permanent_used = 0;
+        memory_char_permanent_position = 0;
          
         inputbuffer_position = 0;
         outputbuffer_position = 0;
@@ -286,7 +291,7 @@ void process( ){
         unsigned long long stepspersubloop = 0;
         for(i=0;i<code_loaded;i++){
             totalsubloops += steplimitmap[i];
-            if (DEBUG) printf("steplimitmap %d %llu\n", i ,  steplimitmap[i]);
+            if (DEBUG) printf("steplimitmap %d %d\n", i ,  steplimitmap[i]);
         }
         if(totalsubloops > 0){
             stepspersubloop = code_steps_max / totalsubloops;
@@ -296,111 +301,149 @@ void process( ){
             if( i > 0 ){
                 steplimitmap[i] = steplimitmap[i] + steplimitmap[i-1];
             }
-            if (DEBUG) printf("steplimitmap %ull %llu\n", i ,  steplimitmap[i]);
+            if (DEBUG) printf("steplimitmap %ull %ull\n", i ,  steplimitmap[i]);
         }
         
         while (code_position < code_loaded && code_steps_executed < code_steps_max) {
             code_steps_executed += 1;
-            if (DEBUG) fprintf(stderr, "Step %llu pos %i %i\n", code_steps_executed, code_position,code[code_position]);
+            if (DEBUG) fprintf(stderr, "Step %llu pos %llu %c\n", code_steps_executed, code_position,code[code_position]);
             switch(code[code_position]) {
                 case '0':
-                    memory_int[memory_int_position] = 0;
+                    memory_char[memory_char_position] = 0;
                     break;
                 case '1':
-                    memory_int[memory_int_position] = 64;
+                    memory_char[memory_char_position] = 1 * 16;
                     break;
                 case '2':
-                    memory_int[memory_int_position] = 256;
+                    memory_char[memory_char_position] = 2 * 16;
+                    break;
+                case '3':
+                    memory_char[memory_char_position] = 3 * 16;
+                    break;
+                case '4':
+                    memory_char[memory_char_position] = 4 * 16;
+                    break;
+                case '5':
+                    memory_char[memory_char_position] = 5 * 16;
+                    break;
+                case '6':
+                    memory_char[memory_char_position] = 6 * 16;
+                    break;
+                case '7':
+                    memory_char[memory_char_position] = 7 * 16;
+                    break;
+                case '8':
+                    memory_char[memory_char_position] = 8 * 16;
+                    break;
+                case '9':
+                    memory_char[memory_char_position] = 9 * 16;
+                    break;
+                case 'A':
+                    memory_char[memory_char_position] = 10 * 16;
+                    break;
+                case 'B':
+                    memory_char[memory_char_position] = 11 * 16;
+                    break;
+                case 'C':
+                    memory_char[memory_char_position] = 12 * 16;
+                    break;
+                case 'D':
+                    memory_char[memory_char_position] = 13 * 16;
+                    break;
+                case 'E':
+                    memory_char[memory_char_position] = 14 * 16;
+                    break;
+                case 'F':
+                    memory_char[memory_char_position] = 15 * 16;
                     break;
 
-
                 case 'M': // Marks the current cell as the cell to use as the 'storage' cell defined in extended type I.
-                    storage_cell = memory_int_position;
+                    storage_cell = memory_char_position;
                     break;
                 case 'm': // Resets the storage cell to the initial storage cell.
                     storage_cell = 0;
                     break;
                     
                 case '$': // Overwrites the byte in storage with the byte at the pointer.
-                     memory_int[storage_cell] = memory_int[memory_int_position]; 
+                     memory_char[storage_cell] = memory_char[memory_char_position]; 
                     break;
                 case '!': // Overwrites the byte at the pointer with the byte in storage.
-                    memory_int[memory_int_position] = memory_int[storage_cell];
+                    memory_char[memory_char_position] = memory_char[storage_cell];
                     break;
 
                 case '~': // Performs a bitwise NOT operation on the byte at the pointer (all 1's and 0's are swapped).
-                    memory_int[memory_int_position] = ~memory_int[memory_int_position];
+                    memory_char[memory_char_position] = ~memory_char[memory_char_position];
                     break;
                 case '^': // Performs a bitwise XOR operation on the byte at the pointer and the byte in storage, storing its result in the byte at the pointer.
-                    memory_int[memory_int_position] = memory_int[memory_int_position] ^ memory_int[storage_cell];
+                    memory_char[memory_char_position] = memory_char[memory_char_position] ^ memory_char[storage_cell];
                     break;
                 case '&': // Performs a bitwise AND operation on the byte at the pointer and the byte in storage, storing its result in the byte at the pointer.
-                    memory_int[memory_int_position] = memory_int[memory_int_position] & memory_int[storage_cell];
+                    memory_char[memory_char_position] = memory_char[memory_char_position] & memory_char[storage_cell];
                     break;
                 case '|': // Performs a bitwise OR operation on the byte at the pointer and the byte in storage, storing its result in the byte at the pointer.
-                    memory_int[memory_int_position] = memory_int[memory_int_position] | memory_int[storage_cell];
+                    memory_char[memory_char_position] = memory_char[memory_char_position] | memory_char[storage_cell];
                     break;
                 case '*': // Multiplies the byte at the pointer with the byte in storage, storing its result in the byte at the pointer.
-                    memory_int[memory_int_position] = memory_int[memory_int_position] * memory_int[storage_cell];
+                    memory_char[memory_char_position] = memory_char[memory_char_position] * memory_char[storage_cell];
                     break;
                 case '/': // Divides the byte at the pointer with the byte in storage, storing its result in the byte at the pointer.
-                    if(memory_int[storage_cell] != 0){
-                        memory_int[memory_int_position] = (int32_t)((long)memory_int[memory_int_position] / (long)memory_int[storage_cell]);
+                    if(memory_char[storage_cell] != 0){
+                        memory_char[memory_char_position] = memory_char[memory_char_position] /  memory_char[storage_cell];    
                     }else{
-                        memory_int[memory_int_position] = 0;    
+                        memory_char[memory_char_position] = 0;    
                     }
                     break;
                 case '=': // Adds the byte at the pointer with the byte in storage, storing its result in the byte at the pointer.
-                    memory_int[memory_int_position] = memory_int[memory_int_position] +  memory_int[storage_cell];
+                    memory_char[memory_char_position] = memory_char[memory_char_position] +  memory_char[storage_cell];
                     break;
                 case '_': // Subtracts the byte at the pointer with the byte in storage, storing its result in the byte at the pointer.
-                    memory_int[memory_int_position] = memory_int[memory_int_position] -  memory_int[storage_cell];
+                    memory_char[memory_char_position] = memory_char[memory_char_position] -  memory_char[storage_cell];
                     break;
                 case '%': // Preforms a Modulo operation on the byte at the pointer and the byte in storage, storing its result in the byte at the pointer.
-                    if(memory_int[storage_cell] != 0){ 
-                        memory_int[memory_int_position] = (int32_t)((long)memory_int[memory_int_position] %  (long)memory_int[storage_cell]);
+                    if(memory_char[storage_cell] != 0){ 
+                        memory_char[memory_char_position] = memory_char[memory_char_position] %  memory_char[storage_cell];
                     }else{
-                        memory_int[memory_int_position] = 0;
+                        memory_char[memory_char_position] = 0;
                     }
                     break;
                     
                 case ':': // Moves the pointer forward or back by the signed number at the current cell. So a cell value of 5, moves the pointer ahead 5 places, where as 251 (signed -5) would move the pointer back 5 places. This is useful for simple variable determining pointer movement.
-                    memory_int_position += memory_int[memory_int_position];
-                    if(memory_int_position < 0){
-                        memory_int_position = 0;
+                    memory_char_position += memory_char[memory_char_position];
+                    if(memory_char_position < 0){
+                        memory_char_position = 0;
                     }
-                    if(memory_int_position >= memory_max){
-                        memory_int_position = memory_max - 1;
+                    if(memory_char_position >= memory_max){
+                        memory_char_position = memory_max - 1;
                     }
                     break;
                     
                 case 'r': // create random char in char memory
-                    memory_int[memory_int_position] =  rand() % 256;
+                    memory_char[memory_char_position] =  rand() % 256;
                     break;
                  
                 case 'p': // char permanent memory 1 to left
-                    if (memory_int_permanent_position != 0){
-                        memory_int_permanent_position -= 1; 
+                    if (memory_char_permanent_position != 0){
+                        memory_char_permanent_position -= 1; 
                     }
                     break;
                  
                 case 'P': // char permanent memory 1 to right
-                    if (memory_int_permanent_position < memory_int_permanent_max -1){
-                        memory_int_permanent_position += 1; 
-                        if(memory_int_permanent_position > memory_int_permanent_used){
-                            memory_int_permanent_used = memory_int_permanent_position+1;
+                    if (memory_char_permanent_position < memory_char_permanent_max -1){
+                        memory_char_permanent_position += 1; 
+                        if(memory_char_permanent_position > memory_char_permanent_used){
+                            memory_char_permanent_used = memory_char_permanent_position+1;
                         }
                     }else{
-                        memory_int_permanent_position = 0;
+                        memory_char_permanent_position = 0;
                     }
                     break;
                     
-                case 'l': // load memory_int from memory_int_permanent
-                    memory_int[memory_int_position] = memory_int_permanent[memory_int_permanent_position];
+                case 'l': // load memory_char from memory_char_permanent
+                    memory_char[memory_char_position] = memory_char_permanent[memory_char_permanent_position];
                     break;  
                     
-                case 's': // save memory_int to memory_int_permanent
-                    memory_int_permanent[memory_int_permanent_position] = memory_int[memory_int_position];
+                case 's': // save memory_char to memory_char_permanent
+                    memory_char_permanent[memory_char_permanent_position] = memory_char[memory_char_position];
                     break;                    
                     
                 case 'i':  // inputbuffer 1 to left
@@ -416,98 +459,56 @@ void process( ){
                     break;                    
                     
                 case '>':  // Increment the pointer (to point to the next cell to the right).
-                    if (memory_int_position < memory_max-1){
-                        memory_int_position += 1; 
-                        if(memory_int_position > memory_int_used){
-                            memory_int_used = memory_int_position+1;
+                    if (memory_char_position < memory_max-1){
+                        memory_char_position += 1; 
+                        if(memory_char_position > memory_char_used){
+                            memory_char_used = memory_char_position+1;
                         }
                     }else{
-                        memory_int_position = 0;
+                        memory_char_position = 0;
                     }
                     break;
                     
                 case '<': // Decrement the pointer (to point to the next cell to the left)
-                    if (memory_int_position != 0){
-                        memory_int_position -= 1; 
+                    if (memory_char_position != 0){
+                        memory_char_position -= 1; 
                     }
                     break;
                     
                 case '+': // Increment (increase by one) the byte at the pointer.
-                    memory_int[memory_int_position] += 1; 
+                    memory_char[memory_char_position] += 1; 
                     break;
                     
                 case '-': // Decrement (decrease by one) the byte at the pointer.
-                    memory_int[memory_int_position] -= 1; 
+                    memory_char[memory_char_position] -= 1; 
                     break;
                     
-                case '.': // Output the value of the lower 8 bit at the pointer. and advance outputbuffer_position by 1
+                case '.': // Output the value of the byte at the pointer. and advance outputbuffer_position by 1
                     if(outputbuffer_position < MAX_OUTPUTBUFFER_SIZE){
-                        outputbuffer[outputbuffer_position] = (char)(memory_int[memory_int_position] & 0xFF); 
+                        outputbuffer[outputbuffer_position] = memory_char[memory_char_position]; 
                         outputbuffer_position += 1;
                     }
                     break;
-                case 'x': // Output the value at the pointer as 4 byte in network order and advance outputbuffer_position by 4
-                    if(outputbuffer_position+3 < MAX_OUTPUTBUFFER_SIZE){
-                        outputbuffer[outputbuffer_position]   = (char)((memory_int[memory_int_position] & 0x000000FF)); 
-                        outputbuffer[outputbuffer_position+1] = (char)((memory_int[memory_int_position] & 0x0000FF00) >>  8); 
-                        outputbuffer[outputbuffer_position+2] = (char)((memory_int[memory_int_position] & 0x00FF0000) >> 16); 
-                        outputbuffer[outputbuffer_position+3] = (char)((memory_int[memory_int_position] & 0xFF000000) >> 24); 
-                        outputbuffer_position += 4;
-                    }
-                    break;
-                case 'y': // Output the value at the pointer as 4 byte in host order nd advance outputbuffer_position by 4
-                    if(outputbuffer_position+3 < MAX_OUTPUTBUFFER_SIZE){
-                        outputbuffer[outputbuffer_position+3] = (char)((memory_int[memory_int_position] & 0x000000FF)); 
-                        outputbuffer[outputbuffer_position+2] = (char)((memory_int[memory_int_position] & 0x0000FF00) >>  8); 
-                        outputbuffer[outputbuffer_position+1] = (char)((memory_int[memory_int_position] & 0x00FF0000) >> 16); 
-                        outputbuffer[outputbuffer_position]   = (char)((memory_int[memory_int_position] & 0xFF000000) >> 24); 
-                        outputbuffer_position += 4;
-                    }
-                    break;                
-                
+                    
                 case ',': // Accept one byte of input, storing its value in the byte at the pointer and advance inputbuffer_position by 1
                     if (inputbuffer_position >= inputbuffer_loaded){
-                        memory_int[memory_int_position] = 0;
+                        memory_char[memory_char_position] = 0;
                     }else{
-                        memory_int[memory_int_position] = inputbuffer[inputbuffer_position]; 
+                        memory_char[memory_char_position] = inputbuffer[inputbuffer_position]; 
                         inputbuffer_position += 1;
-                    }
-                    break;
-                    
-                case 'X': // Accept 4 byte of input, storing its value in the int at the pointer and advance inputbuffer_position by 4
-                    if (inputbuffer_position +3 >= inputbuffer_loaded){
-                        memory_int[memory_int_position] = 0;
-                    }else{
-                        memory_int[memory_int_position]  = (int)inputbuffer[inputbuffer_position]; 
-                        memory_int[memory_int_position] += (int)inputbuffer[inputbuffer_position+1] << 8; 
-                        memory_int[memory_int_position] += (int)inputbuffer[inputbuffer_position+2] << 16; 
-                        memory_int[memory_int_position] += (int)inputbuffer[inputbuffer_position+3] << 24; 
-                        inputbuffer_position += 4;
-                    }
-                    break;
-                    
-                case 'Y': // Accept 4 byte of input, storing its value in the int at the pointer and advance inputbuffer_position by 4
-                    if (inputbuffer_position +3 >= inputbuffer_loaded){
-                        memory_int[memory_int_position] = 0;
-                    }else{
-                        memory_int[memory_int_position]  = (int)inputbuffer[inputbuffer_position]   << 24; 
-                        memory_int[memory_int_position] += (int)inputbuffer[inputbuffer_position+1] << 16; 
-                        memory_int[memory_int_position] += (int)inputbuffer[inputbuffer_position+2] <<  8; 
-                        memory_int[memory_int_position] += (int)inputbuffer[inputbuffer_position+3]; 
-                        inputbuffer_position += 4;
                     }
                     break;
                     
                 case '[': // Jump forward to the command after the corresponding ] if the byte at the pointer is zero.
                     looplimitmap[code_position] += 1;
-                    if (memory_int[memory_int_position] == 0  || looplimitmap[code_position] % 2048 == 0 ) {
+                    if (memory_char[memory_char_position] == 0  || looplimitmap[code_position] % 2048 == 0 ) {
                         code_position = jumpmap[code_position];
                     }
                     break;
                     
                 case ']': // Jump back to the command after the corresponding [ if the byte at the pointer is nonzero   
                     looplimitmap[code_position] += 1;
-                    if (memory_int[memory_int_position] != 0  &&  looplimitmap[code_position] % 2048 != 0 && code_steps_executed <= steplimitmap[code_position] ) {
+                    if (memory_char[memory_char_position] != 0  &&  looplimitmap[code_position] % 2048 != 0 && code_steps_executed <= steplimitmap[code_position] ) {
                         code_position = jumpmap[code_position];
                     }else{
                         looplimitmap[code_position] = 0;
@@ -550,11 +551,11 @@ void process( ){
         
         reply = redisCommand(redis_context,"SET instance.%s.output %b", instance_id, outputbuffer, (size_t) outputbuffer_position);
         freeReplyObject(reply);
-        reply = redisCommand(redis_context,"SET instance.%s.memory %b", instance_id, memory_int_permanent, (size_t) memory_int_permanent_used*4);
+        reply = redisCommand(redis_context,"SET instance.%s.memory %b", instance_id, memory_char_permanent, (size_t) memory_char_permanent_used);
         freeReplyObject(reply);
         reply = redisCommand(redis_context,"SET instance.%s.program_steps %u", instance_id, code_steps_executed);
         freeReplyObject(reply);
-        reply = redisCommand(redis_context,"SET instance.%s.memory_usage %u", instance_id, memory_int_used);
+        reply = redisCommand(redis_context,"SET instance.%s.memory_usage %u", instance_id, memory_char_used);
         freeReplyObject(reply);
         reply = redisCommand(redis_context,"SET instance.%s.execution_time %u", instance_id, execution_time);
         freeReplyObject(reply);
@@ -565,10 +566,12 @@ void process( ){
         if(DEBUG){
             printf("instance_id %s\n", instance_id);
             printf("individual_id %s\n", individual_id);            
-            printf("code_steps_max %llu\n", code_steps_max);            
+            printf("code_loaded %zu\n", code_loaded);
+            printf("code_steps_max %u\n", code_steps_max);
+            
             printf("%llu code_steps_executed\n", code_steps_executed);
-            printf("%u memory_int_used\n", memory_int_used);
-            printf("%llu execution_time\n", execution_time);
+            printf("%u memory_char_used\n", memory_char_used);
+            printf("%u execution_time\n", execution_time);
         }
         
     }
@@ -594,6 +597,7 @@ int main(int argc, char *argv[])
         }
     }
 
+    
     result = getrlimit(RLIMIT_STACK, &rl);
     if (result == 0){
         if (rl.rlim_cur < kStackSize){
@@ -602,7 +606,8 @@ int main(int argc, char *argv[])
             if (result != 0){fprintf(stderr, "setrlimit returned result = %d\n", result);}
         }
     }
-    
+
+
     /* Start children. */
     for (i = 0; i < numThreads; ++i) {
         if ((pids[i] = fork()) < 0) {

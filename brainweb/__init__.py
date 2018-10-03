@@ -6,7 +6,7 @@ def enabled_pragmas(sender, connection, **kwargs):
         cursor.execute('PRAGMA foreign_keys = ON;')
         cursor.execute("PRAGMA journal_mode = WAL;")
         cursor.execute("PRAGMA synchronous = OFF;")
-        cursor.execute("PRAGMA cache_size = 100000;")
+        cursor.execute("PRAGMA cache_size = 512000;")
         cursor.execute('PRAGMA temp_store = MEMORY;')
         
 connection_created.connect(enabled_pragmas)
